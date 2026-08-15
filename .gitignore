@@ -3,3 +3,6 @@ Thumbs.db
 *.log
 secrets.json
 .env
+.wrangler
+node_modules
+

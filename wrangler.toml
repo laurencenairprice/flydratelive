@@ -1,0 +1,8 @@
+name = "flydrate-flight-api"
+main = "worker.js"
+compatibility_date = "2026-08-15"
+workers_dev = true
+account_id = "6a7db9d9cd1c4fbf89ceca52984a7ac3"
+
+[vars]
+RAPIDAPI_HOST = "aerodatabox.p.rapidapi.com"
