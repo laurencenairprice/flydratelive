@@ -202,11 +202,16 @@ a {
   border: 1px solid rgba(45, 185, 199, 0.35);
   padding: 22px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  min-width: 0;
+}
+
+.calc-search {
+  min-width: 0;
 }
 
 .calc-search-row {
   display: grid;
-  grid-template-columns: 1.4fr 0.9fr auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr) auto;
   gap: 10px;
   margin-top: 8px;
 }
@@ -214,6 +219,7 @@ a {
 .calc-card input,
 .calc-card select {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
@@ -226,10 +232,25 @@ a {
 
 .calc-card input[type="date"] {
   text-transform: none;
+  letter-spacing: 0;
+  max-width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.calc-card input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+}
+
+.calc-card input[type="date"]::-webkit-datetime-edit {
+  min-width: 0;
+  padding: 0;
 }
 
 .calc-card .btn {
   border: 0;
+  white-space: nowrap;
 }
 
 .calc-status {
@@ -414,7 +435,18 @@ a {
 }
 
 @media (max-width: 860px) {
-  .calc-search-row,
+  .calc-search-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .calc-search-row > input:first-of-type {
+    grid-column: 1 / -1;
+  }
+
+  .calc-card input[type="date"] {
+    padding-inline: 10px;
+  }
+
   .calc-fields,
   .calc-results {
     grid-template-columns: 1fr;
