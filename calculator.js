@@ -290,6 +290,12 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function shopName(unit) {
+  const name = String(unit || "").trim();
+  if (!name) return "";
+  return /^whsmiths?\b/i.test(name) ? name : `WHSmiths ${name}`;
+}
+
 function stockPanelHtml(role, code, terminal) {
   const iata = stockIata(code);
   const match = stockMatch(iata, terminal);
@@ -306,9 +312,10 @@ function stockPanelHtml(role, code, terminal) {
 
   const units = match.terminals
     .flatMap((term) => term.units.map((unit) => {
+      const shop = shopName(unit);
       const place = match.matchedTerminal || match.terminals.length === 1
-        ? unit
-        : `${term.label}: ${unit}`;
+        ? shop
+        : `${term.label}: ${shop}`;
       return `<li>${escapeHtml(place)}</li>`;
     }))
     .join("");
@@ -337,7 +344,7 @@ function renderAirportDirectory() {
     .sort((a, b) => a[1].name.localeCompare(b[1].name))
     .map(([iata, airport]) => {
       const terminals = airport.terminals.map((term) => {
-        const units = term.units.map((unit) => `<li>${escapeHtml(unit)}</li>`).join("");
+        const units = term.units.map((unit) => `<li>${escapeHtml(shopName(unit))}</li>`).join("");
         const heading = term.key ? term.label : "Units";
         return `<div class="airport-term">
           <p class="mono">${escapeHtml(heading)}</p>
