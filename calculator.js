@@ -175,6 +175,7 @@ function setStatus(message, kind) {
 }
 
 let journeyFrame = 0;
+let journeyDelay = 0;
 
 function buildHydrateCells() {
   const row = $("hydrateCells");
@@ -194,6 +195,10 @@ function setHydration(percent) {
 }
 
 function stopJourney() {
+  if (journeyDelay) {
+    clearTimeout(journeyDelay);
+    journeyDelay = 0;
+  }
   if (journeyFrame) cancelAnimationFrame(journeyFrame);
   journeyFrame = 0;
 }
@@ -215,13 +220,16 @@ function playJourney(hours) {
   }
 
   apply(0);
-  const started = performance.now();
-  const tick = (now) => {
-    const t = Math.min(1, (now - started) / duration);
-    apply(t);
-    if (t < 1) journeyFrame = requestAnimationFrame(tick);
-  };
-  journeyFrame = requestAnimationFrame(tick);
+  journeyDelay = setTimeout(() => {
+    journeyDelay = 0;
+    const started = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - started) / duration);
+      apply(t);
+      if (t < 1) journeyFrame = requestAnimationFrame(tick);
+    };
+    journeyFrame = requestAnimationFrame(tick);
+  }, 1500);
 }
 
 function countryFromAirport(airport, iata) {
