@@ -811,6 +811,15 @@ h2 {
 }
 
 @media (max-width: 860px) {
+  .wrap,
+  .nav .wrap {
+    width: min(1120px, calc(100% - 28px));
+  }
+
+  .calc-card {
+    padding: 16px;
+  }
+
   .hero-grid,
   .split,
   .formula-grid,
