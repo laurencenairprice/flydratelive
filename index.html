@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-flight-api="">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FLYDRATE — Hydration at 30,000 feet</title>
-  <meta name="description" content="The world's first hydration drink built for the sky. Lightly sparkling lemon ginger electrolyte drink. No sugar, no caffeine, no carbs.">
+  <title>FLYDRATE — Flight fluid loss calculator</title>
+  <meta name="description" content="Enter your flight number to estimate cabin fluid loss from aircraft type and duration. The world's first hydration drink built for the sky.">
   <meta property="og:title" content="FLYDRATE — Hydration at altitude">
   <meta property="og:description" content="Because how you arrive matters. Lemon ginger electrolyte drink formulated for travel.">
   <meta property="og:image" content="assets/product-lockup.jpg">
@@ -23,6 +23,7 @@
         <span>FLYDRATE</span>
       </a>
       <nav class="nav-links" aria-label="Primary">
+        <a href="#top">Calculator</a>
         <a href="#drink">The drink</a>
         <a href="#formula">Formula</a>
         <a href="#routes">Routes</a>
@@ -34,38 +35,57 @@
 
   <main id="main">
     <section class="hero" id="top">
-      <div class="wrap hero-grid">
-        <div>
-          <div class="flight-meta mono">
-            <div>Flt<span>FD 001</span></div>
-            <div>Alt<span>30,000 FT</span></div>
-            <div>Cabin<span>10–12% RH</span></div>
-          </div>
+      <div class="wrap calc-hero">
+        <div class="calc-intro">
           <p class="mono slashes">Hydration at altitude</p>
-          <h1>The world’s first hydration drink built for the sky</h1>
-          <p class="lede">A lightly sparkling lemon ginger electrolyte drink, formulated for cabin dehydration, fatigue and immunity. Developed with scientists. Chosen by frequent travellers and cabin crew.</p>
-          <div class="hero-actions">
-            <a class="btn btn-solid" href="https://flydrate.com">Shop Flydrate</a>
-            <a class="btn btn-ghost" href="#drink">See what’s on board</a>
-          </div>
+          <h1>Enter your flight number</h1>
+          <p class="lede">We look up the live aircraft and duration, then estimate how much fluid the cabin will take before you land.</p>
         </div>
-        <aside class="hero-visual" aria-label="Boarding pass">
-          <div class="pass-row">
+
+        <form class="calc-card" id="lookupForm">
+          <div class="calc-search">
+            <label class="mono" for="flightNumber">Flight number</label>
+            <div class="calc-search-row">
+              <input id="flightNumber" name="flightNumber" type="text" placeholder="BA16" autocomplete="off" spellcheck="false" required>
+              <input id="flightDate" name="flightDate" type="date" aria-label="Flight date">
+              <button class="btn btn-solid" id="findFlight" type="submit">Find flight</button>
+            </div>
+            <p class="calc-status" id="flightStatus">Try BA16, EK1 or UA1 — any IATA flight number.</p>
+          </div>
+
+          <div class="calc-flight" id="flightInfo" hidden>
+            <p class="codes" id="route">LHR → SIN</p>
+            <p id="aircraftFound"></p>
+            <p id="durationFound"></p>
+            <p class="mono" id="flightMeta"></p>
+          </div>
+
+          <div class="calc-fields">
             <div>
-              <span class="mono">From</span>
-              <strong>LHR</strong>
+              <label class="mono" for="aircraft">Aircraft type</label>
+              <select id="aircraft"></select>
             </div>
             <div>
-              <span class="mono">To</span>
-              <strong>SYD</strong>
-            </div>
-            <div>
-              <span class="mono">Can</span>
-              <strong>250</strong>
+              <label class="mono" for="hours">Duration (hours)</label>
+              <input id="hours" type="number" min="0.5" max="30" step="0.25" value="14">
             </div>
           </div>
-          <img src="assets/product-lockup.jpg" alt="FLYDRATE wordmark with airplane, lemon ginger lightly sparkling electrolyte drink">
-        </aside>
+
+          <div class="calc-results">
+            <div>
+              <p class="mono">Estimated fluid loss</p>
+              <p class="calc-big" id="total">—</p>
+              <p class="calc-sub" id="details">Find a flight to calculate.</p>
+            </div>
+            <div class="calc-cans">
+              <p class="mono">Recommended Flydrate</p>
+              <p class="calc-big" id="cans">—</p>
+              <p class="calc-sub" id="canDetails">250 mL cans</p>
+              <a class="btn btn-solid" href="https://flydrate.com">Shop the can</a>
+            </div>
+          </div>
+        </form>
+        <p class="calc-disclaimer">Estimate only, not a medical diagnosis. Based on representative passenger mass, UK CAA cabin respiratory loss, and aircraft humidity class. Water from food and other drinks also counts.</p>
       </div>
       <div class="route-bar" aria-hidden="true">
         <div class="route-track">
@@ -274,6 +294,10 @@
       <div class="wrap">
         <p class="mono slashes section-kicker">Before you board</p>
         <h2>Questions</h2>
+        <details>
+          <summary>How does the flight calculator work?</summary>
+          <p>Enter an IATA flight number and date. We look up the operating aircraft and scheduled duration, classify the cabin humidity, and estimate fluid loss from normal daily water output plus extra cabin respiratory loss. The can guide is a journey-length product suggestion, not a prescription.</p>
+        </details>
         <details open>
           <summary>Why is hydration important when flying?</summary>
           <p>Aircraft cabins have very low humidity, which can contribute to dehydration. FLYDRATE contains key electrolytes to help support fluid balance while travelling.</p>
@@ -326,5 +350,6 @@
       <small>UK · Best served chilled · Once opened, consume within 24 hours</small>
     </div>
   </footer>
+  <script src="calculator.js"></script>
 </body>
 </html>
