@@ -174,12 +174,65 @@ function setStatus(message, kind) {
   el.dataset.kind = kind || "";
 }
 
+let journeyFrame = 0;
+
+function buildHydrateCells() {
+  const row = $("hydrateCells");
+  if (!row || row.childElementCount) return;
+  for (let i = 0; i < 20; i += 1) {
+    row.appendChild(document.createElement("span"));
+  }
+}
+
+function setHydration(percent) {
+  const clamped = Math.max(0, Math.min(100, percent));
+  const on = Math.round((clamped / 100) * 20);
+  $("hydratePct").textContent = `${Math.round(clamped)}%`;
+  [...$("hydrateCells").children].forEach((cell, index) => {
+    cell.classList.toggle("off", index >= on);
+  });
+}
+
+function stopJourney() {
+  if (journeyFrame) cancelAnimationFrame(journeyFrame);
+  journeyFrame = 0;
+}
+
+function playJourney(hours) {
+  stopJourney();
+  const plane = $("journeyPlane");
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const duration = reduced ? 0 : Math.round(Math.min(18, Math.max(10, (hours || 12) * 0.8)) * 1000);
+
+  const apply = (t) => {
+    plane.style.left = `${t * 100}%`;
+    setHydration((1 - t) * 100);
+  };
+
+  if (!duration) {
+    apply(1);
+    return;
+  }
+
+  apply(0);
+  const started = performance.now();
+  const tick = (now) => {
+    const t = Math.min(1, (now - started) / duration);
+    apply(t);
+    if (t < 1) journeyFrame = requestAnimationFrame(tick);
+  };
+  journeyFrame = requestAnimationFrame(tick);
+}
+
 function showFlight(info) {
   $("route").textContent = info.route;
   $("aircraftFound").textContent = info.aircraftLabel;
   $("durationFound").textContent = info.durationLabel;
   $("flightMeta").textContent = info.metaLabel;
+  $("journeyFrom").textContent = info.fromCode || "—";
+  $("journeyTo").textContent = info.toCode || "—";
   $("flightInfo").hidden = false;
+  playJourney(info.hours);
 }
 
 function pickFlight(payload) {
@@ -223,6 +276,8 @@ function flightToView(flight, number) {
   return {
     number: flight.number || number,
     route: `${from} → ${to}`,
+    fromCode: from,
+    toCode: to,
     routeLong: `${fromName} → ${toName}`,
     aircraftName: matched,
     aircraftLabel: model ? `Aircraft: ${model}` : `Aircraft: ${matched}`,
@@ -247,6 +302,7 @@ async function lookupFlight(event) {
 
   setStatus("Finding flight…");
   $("findFlight").disabled = true;
+  stopJourney();
 
   try {
     const query = new URLSearchParams({ number });
@@ -298,6 +354,8 @@ function todayISO() {
 
 function initCalculator() {
   populateAircraft();
+  buildHydrateCells();
+  setHydration(100);
   $("flightDate").value = todayISO();
   $("lookupForm").addEventListener("submit", lookupFlight);
   $("hours").addEventListener("input", calculate);
