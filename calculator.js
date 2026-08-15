@@ -306,7 +306,7 @@ function stockPanelHtml(role, code, terminal) {
   if (!match) {
     return `<article class="stock-panel">
       <p class="mono">${escapeHtml(title)}</p>
-      <p class="stock-copy">Not on the current UK stockist list. Shop at flydrate.com, or check the airport directory for UK departures.</p>
+      <p class="stock-copy">Not available at this location, Shop at <a href="https://flydrate.com">www.Flydrate.com</a></p>
     </article>`;
   }
 

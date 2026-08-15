@@ -406,6 +406,12 @@ a {
   font-size: 0.92rem;
 }
 
+.stock-copy a {
+  color: var(--teal-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .stock-security {
   margin: 0 0 10px;
   font-size: 0.92rem;
