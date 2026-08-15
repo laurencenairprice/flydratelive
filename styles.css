@@ -267,12 +267,29 @@ a {
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 12px;
+  align-items: start;
+}
+
+.journey-end {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 6px;
+  min-width: 2.6rem;
+}
+
+.journey-flag {
+  width: 22px;
+  height: 15px;
+  object-fit: cover;
+  border: 1px solid rgba(7, 16, 22, 0.18);
+  border-radius: 1px;
 }
 
 .journey-path {
   position: relative;
   height: 36px;
+  margin-top: 2px;
 }
 
 .journey-line {

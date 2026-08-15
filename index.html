@@ -60,7 +60,10 @@
             <p class="mono" id="flightMeta"></p>
             <div class="journey" aria-hidden="true">
               <div class="journey-route">
-                <span class="mono" id="journeyFrom">SIN</span>
+                <div class="journey-end">
+                  <span class="mono" id="journeyFrom">SIN</span>
+                  <img class="journey-flag" id="journeyFromFlag" alt="" hidden>
+                </div>
                 <div class="journey-path">
                   <span class="journey-line"></span>
                   <span class="journey-plane" id="journeyPlane">
@@ -69,7 +72,10 @@
                     </svg>
                   </span>
                 </div>
-                <span class="mono" id="journeyTo">LHR</span>
+                <div class="journey-end">
+                  <span class="mono" id="journeyTo">LHR</span>
+                  <img class="journey-flag" id="journeyToFlag" alt="" hidden>
+                </div>
               </div>
               <p class="mono journey-hydrate-label">Hydration</p>
               <div class="hydrate-bar" id="hydrateBar">

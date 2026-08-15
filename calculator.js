@@ -224,6 +224,56 @@ function playJourney(hours) {
   journeyFrame = requestAnimationFrame(tick);
 }
 
+function countryFromAirport(airport, iata) {
+  const raw = airport?.countryCode || iataCountry[String(iata || "").toUpperCase()] || "";
+  const code = String(raw).toUpperCase();
+  if (code === "UK") return "GB";
+  return /^[A-Z]{2}$/.test(code) ? code : "";
+}
+
+const iataCountry = {
+  LHR: "GB", LGW: "GB", STN: "GB", LTN: "GB", MAN: "GB", EDI: "GB", GLA: "GB", BHX: "GB", BRS: "GB", NCL: "GB", BFS: "GB", LCY: "GB",
+  SIN: "SG",
+  JFK: "US", EWR: "US", LGA: "US", LAX: "US", SFO: "US", ORD: "US", MIA: "US", DFW: "US", ATL: "US", BOS: "US", SEA: "US", IAD: "US",
+  CDG: "FR", ORY: "FR",
+  AMS: "NL",
+  FRA: "DE", MUC: "DE",
+  MAD: "ES", BCN: "ES",
+  FCO: "IT", MXP: "IT",
+  DUB: "IE",
+  ZRH: "CH", GVA: "CH",
+  VIE: "AT",
+  CPH: "DK", OSL: "NO", ARN: "SE", HEL: "FI",
+  LIS: "PT",
+  ATH: "GR",
+  IST: "TR",
+  DXB: "AE", AUH: "AE", DOH: "QA", BAH: "BH", MCT: "OM", RUH: "SA", JED: "SA",
+  HND: "JP", NRT: "JP", KIX: "JP",
+  ICN: "KR",
+  PEK: "CN", PVG: "CN", CAN: "CN", HKG: "HK", TPE: "TW",
+  BKK: "TH", DMK: "TH",
+  KUL: "MY", CGK: "ID", MNL: "PH", SGN: "VN", HAN: "VN",
+  SYD: "AU", MEL: "AU", BNE: "AU", PER: "AU", ADL: "AU", AKL: "NZ",
+  DEL: "IN", BOM: "IN", BLR: "IN", MAA: "IN",
+  JNB: "ZA", CPT: "ZA", NBO: "KE", CAI: "EG", LOS: "NG", ADD: "ET",
+  GRU: "BR", GIG: "BR", EZE: "AR", SCL: "CL", LIM: "PE", MEX: "MX", CUN: "MX", YYZ: "CA", YVR: "CA",
+  GUM: "GU", HNL: "US"
+};
+
+function setFlag(img, iso) {
+  const code = String(iso || "").toLowerCase();
+  if (!/^[a-z]{2}$/.test(code)) {
+    img.hidden = true;
+    img.removeAttribute("src");
+    return;
+  }
+  img.src = `https://flagcdn.com/w40/${code}.png`;
+  img.hidden = false;
+  img.onerror = () => {
+    img.hidden = true;
+  };
+}
+
 function showFlight(info) {
   $("route").textContent = info.route;
   $("aircraftFound").textContent = info.aircraftLabel;
@@ -231,6 +281,8 @@ function showFlight(info) {
   $("flightMeta").textContent = info.metaLabel;
   $("journeyFrom").textContent = info.fromCode || "—";
   $("journeyTo").textContent = info.toCode || "—";
+  setFlag($("journeyFromFlag"), info.fromCountry);
+  setFlag($("journeyToFlag"), info.toCountry);
   $("flightInfo").hidden = false;
   playJourney(info.hours);
 }
@@ -278,6 +330,8 @@ function flightToView(flight, number) {
     route: `${from} → ${to}`,
     fromCode: from,
     toCode: to,
+    fromCountry: countryFromAirport(flight.departure?.airport, from),
+    toCountry: countryFromAirport(flight.arrival?.airport, to),
     routeLong: `${fromName} → ${toName}`,
     aircraftName: matched,
     aircraftLabel: model ? `Aircraft: ${model}` : `Aircraft: ${matched}`,
