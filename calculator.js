@@ -282,6 +282,82 @@ function setFlag(img, iso) {
   };
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function stockPanelHtml(role, code, terminal) {
+  const iata = stockIata(code);
+  const match = stockMatch(iata, terminal);
+  const title = terminal && match?.matchedTerminal
+    ? `${role} · ${iata} ${match.terminals[0].label}`
+    : `${role} · ${iata || "—"}`;
+
+  if (!match) {
+    return `<article class="stock-panel">
+      <p class="mono">${escapeHtml(title)}</p>
+      <p class="stock-copy">Not on the current UK stockist list. Shop at flydrate.com, or check the airport directory for UK departures.</p>
+    </article>`;
+  }
+
+  const units = match.terminals
+    .flatMap((term) => term.units.map((unit) => {
+      const place = match.matchedTerminal || match.terminals.length === 1
+        ? unit
+        : `${term.label}: ${unit}`;
+      return `<li>${escapeHtml(place)}</li>`;
+    }))
+    .join("");
+
+  return `<article class="stock-panel">
+    <p class="mono">${escapeHtml(title)}</p>
+    <p class="stock-security stock-security-${match.security}">${escapeHtml(securityCopy(match))}</p>
+    <p class="stock-copy">Buy Flydrate at:</p>
+    <ul class="stock-units">${units}</ul>
+  </article>`;
+}
+
+function renderStock(info) {
+  const grid = $("stockGrid");
+  if (!grid) return;
+  grid.innerHTML = [
+    stockPanelHtml("Depart", info.fromCode, info.fromTerminal),
+    stockPanelHtml("Arrive", info.toCode, info.toTerminal)
+  ].join("");
+}
+
+function renderAirportDirectory() {
+  const root = $("airportCards");
+  if (!root) return;
+  const cards = Object.entries(flydrateStockists)
+    .sort((a, b) => a[1].name.localeCompare(b[1].name))
+    .map(([iata, airport]) => {
+      const terminals = airport.terminals.map((term) => {
+        const units = term.units.map((unit) => `<li>${escapeHtml(unit)}</li>`).join("");
+        const heading = term.key ? term.label : "Units";
+        return `<div class="airport-term">
+          <p class="mono">${escapeHtml(heading)}</p>
+          <ul class="stock-units">${units}</ul>
+        </div>`;
+      }).join("");
+      return `<article class="airport-card">
+        <header>
+          <span class="codes">${escapeHtml(iata)}</span>
+          <span class="stock-pill stock-pill-${airport.security}">${airport.security === "yes" ? "Through security" : "Buy after security"}</span>
+        </header>
+        <p class="airport-name">${escapeHtml(airport.name)}</p>
+        <p class="stock-security stock-security-${airport.security}">${escapeHtml(securityCopy(airport))}</p>
+        ${terminals}
+      </article>`;
+    })
+    .join("");
+  root.innerHTML = cards;
+}
+
 function showFlight(info) {
   $("route").textContent = info.route;
   $("aircraftFound").textContent = info.aircraftLabel;
@@ -291,6 +367,7 @@ function showFlight(info) {
   $("journeyTo").textContent = info.toCode || "—";
   setFlag($("journeyFromFlag"), info.fromCountry);
   setFlag($("journeyToFlag"), info.toCountry);
+  renderStock(info);
   $("flightInfo").hidden = false;
   playJourney(info.hours);
 }
@@ -338,6 +415,8 @@ function flightToView(flight, number) {
     route: `${from} → ${to}`,
     fromCode: from,
     toCode: to,
+    fromTerminal: flight.departure?.terminal || "",
+    toTerminal: flight.arrival?.terminal || "",
     fromCountry: countryFromAirport(flight.departure?.airport, from),
     toCountry: countryFromAirport(flight.arrival?.airport, to),
     routeLong: `${fromName} → ${toName}`,
@@ -418,6 +497,7 @@ function initCalculator() {
   populateAircraft();
   buildHydrateCells();
   setHydration(100);
+  renderAirportDirectory();
   $("flightDate").value = todayISO();
   $("lookupForm").addEventListener("submit", lookupFlight);
   $("hours").addEventListener("input", calculate);

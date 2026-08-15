@@ -27,6 +27,7 @@
         <a href="#drink">The drink</a>
         <a href="#formula">Formula</a>
         <a href="#routes">Routes</a>
+        <a href="#airports">Airports</a>
         <a href="#faq">FAQ</a>
         <a class="btn btn-solid" href="https://flydrate.com">Shop</a>
       </nav>
@@ -83,6 +84,7 @@
                 <span class="hydrate-pct" id="hydratePct">100%</span>
               </div>
             </div>
+            <div class="stock-grid" id="stockGrid"></div>
           </div>
 
           <div class="calc-fields">
@@ -283,6 +285,16 @@
       </div>
     </section>
 
+    <section class="section airports" id="airports">
+      <div class="wrap">
+        <p class="mono slashes section-kicker">UK travel retail</p>
+        <h2>Buy it at the airport</h2>
+        <p>Where Flydrate is stocked today, and whether a 250ml can can go through that airport’s security. If the 100ml rule still applies, buy after screening.</p>
+        <div class="airport-cards" id="airportCards"></div>
+        <p class="calc-disclaimer">Stockists and security notes from the current UK travel-retail list. Rules can change — follow airport signage on the day you fly.</p>
+      </div>
+    </section>
+
     <section class="section" id="nutrition">
       <div class="wrap split">
         <div>
@@ -337,7 +349,11 @@
         </details>
         <details>
           <summary>How is it sold?</summary>
-          <p>FLYDRATE is available in cases of 12 and 24 cans and is best enjoyed chilled. Currently available in the United Kingdom.</p>
+          <p>FLYDRATE is available in cases of 12 and 24 cans from flydrate.com, and at UK airport travel-retail units listed on this page. Best enjoyed chilled.</p>
+        </details>
+        <details>
+          <summary>Can I take Flydrate through airport security?</summary>
+          <p>It depends on the airport. Some UK airports now allow liquids up to 2 litres through security, so a 250ml can is fine. Others still apply the 100ml rule — buy airside after screening. Check the Airports list or look up your flight.</p>
         </details>
       </div>
     </section>
@@ -375,6 +391,7 @@
       <small>UK · Best served chilled · Once opened, consume within 24 hours</small>
     </div>
   </footer>
+  <script src="stockists.js"></script>
   <script src="calculator.js"></script>
 </body>
 </html>
