@@ -420,6 +420,7 @@ a {
 
 .stock-security-yes {
   color: var(--teal-deep);
+  margin-bottom: 22px;
 }
 
 .stock-security-no {
