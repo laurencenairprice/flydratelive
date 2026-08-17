@@ -98,6 +98,18 @@
             </div>
           </div>
 
+          <div class="fd-panel" id="fdPanel">
+            <div>
+              <p class="mono">Cabin humidity · FD rating</p>
+              <p class="calc-big" id="fdScore">—</p>
+            </div>
+            <div>
+              <p class="calc-sub" id="fdCabin">Select an aircraft to see its cabin humidity rating.</p>
+              <div class="fd-scale" id="fdScale" aria-hidden="true"></div>
+              <p class="mono fd-legend">FD1 most hydration-favourable · FD10 driest cabin</p>
+            </div>
+          </div>
+
           <div class="calc-results">
             <div>
               <p class="mono">Estimated fluid loss</p>
@@ -112,7 +124,7 @@
             </div>
           </div>
         </form>
-        <p class="calc-disclaimer">Estimate only, not a medical diagnosis. Based on representative passenger mass, UK CAA cabin respiratory loss, and aircraft humidity class. Water from food and other drinks also counts.</p>
+        <p class="calc-disclaimer">Estimate only, not a medical diagnosis. Based on representative passenger mass, UK CAA cabin respiratory loss, and aircraft humidity class. The FD rating is a cabin-environment score only and does not change the fluid-loss calculation. Water from food and other drinks also counts.</p>
       </div>
       <div class="route-bar" aria-hidden="true">
         <div class="route-track">
@@ -348,6 +360,10 @@
           <p>The blend is formulated for the dehydration challenges of flying — sodium for fluid balance, potassium for muscle function and cellular hydration, magnesium to reduce fatigue — but it belongs anywhere the journey asks more of you.</p>
         </details>
         <details>
+          <summary>What is the FD rating?</summary>
+          <p>FD1 is the most hydration-favourable cabin environment; FD10 is the driest. The score comes from published cabin humidity measurements by aircraft family. It is a cabin-environment rating only — it is not a dehydration score and does not change the fluid-loss calculation. Humidity still varies with airline, load and the specific flight.</p>
+        </details>
+        <details>
           <summary>How is it sold?</summary>
           <p>FLYDRATE is available in cases of 12 and 24 cans from flydrate.com, and at UK airport travel-retail units listed on this page. Best enjoyed chilled.</p>
         </details>
@@ -392,6 +408,7 @@
     </div>
   </footer>
   <script src="stockists.js"></script>
+  <script src="fd-ratings.js"></script>
   <script src="calculator.js"></script>
 </body>
 </html>

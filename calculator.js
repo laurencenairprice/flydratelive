@@ -143,8 +143,38 @@ function recommendedCans(hours) {
   return 5;
 }
 
+function buildFdScale() {
+  const scale = $("fdScale");
+  if (!scale || scale.childElementCount) return;
+  for (let i = 1; i <= 10; i += 1) {
+    const mark = document.createElement("span");
+    mark.textContent = String(i);
+    scale.appendChild(mark);
+  }
+}
+
+function renderFd(aircraft) {
+  const rating = fdForAircraft(aircraft);
+  const panel = $("fdPanel");
+  const marks = [...$("fdScale").children];
+  marks.forEach((mark, index) => {
+    mark.classList.toggle("on", Boolean(rating) && index + 1 === rating.rating);
+  });
+  if (panel) panel.dataset.fd = rating ? String(rating.rating) : "";
+
+  if (!rating) {
+    $("fdScore").textContent = "FD —";
+    $("fdCabin").textContent = "FD rating not listed for this aircraft type.";
+    return;
+  }
+
+  $("fdScore").textContent = `FD ${rating.rating}`;
+  $("fdCabin").textContent = rating.cabin;
+}
+
 function calculate() {
   const aircraft = $("aircraft").value;
+  renderFd(aircraft);
   const hours = parseFloat($("hours").value);
   if (!Number.isFinite(hours) || hours <= 0) {
     $("total").textContent = "—";
@@ -155,14 +185,16 @@ function calculate() {
   }
 
   const category = aircraftData[aircraft] || "typical";
+  const rating = fdForAircraft(aircraft);
   const normal = 2750 * (hours / 24);
   const cabin = 150 * (hours / 8) * humidityFactor[category];
   const altitude = altitudeRate[category] * hours;
   const total = normal + cabin + altitude;
   const cans = recommendedCans(hours);
+  const fdLabel = rating ? `FD ${rating.rating}` : "FD —";
 
   $("total").textContent = `${(total / 1000).toFixed(2)} L`;
-  $("details").textContent = `${aircraft} · ${cabinLabel[category]} · ${formatHours(hours)}`;
+  $("details").textContent = `${aircraft} · ${fdLabel} · ${rating ? rating.cabin : cabinLabel[category]} · ${formatHours(hours)}`;
   $("cans").textContent = `${cans} × 250 mL`;
   $("canDetails").textContent =
     cans === 1 ? "1 can recommended for the journey" : `${cans} cans recommended across the journey`;
@@ -503,6 +535,7 @@ function todayISO() {
 function initCalculator() {
   populateAircraft();
   buildHydrateCells();
+  buildFdScale();
   setHydration(100);
   renderAirportDirectory();
   $("flightDate").value = todayISO();
