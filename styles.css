@@ -278,6 +278,15 @@ a {
   margin: 0;
 }
 
+.fd-found {
+  margin-top: 6px;
+  font-family: var(--display);
+  font-size: 1.4rem;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+
 .journey {
   margin-top: 18px;
   padding-top: 16px;

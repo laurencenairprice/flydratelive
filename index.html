@@ -57,6 +57,7 @@
           <div class="calc-flight" id="flightInfo" hidden>
             <p class="codes" id="route">LHR → SIN</p>
             <p id="aircraftFound"></p>
+            <p class="fd-found" id="fdFound"></p>
             <p id="durationFound"></p>
             <p class="mono" id="flightMeta"></p>
             <div class="journey" aria-hidden="true">
@@ -101,10 +102,10 @@
           <div class="fd-panel" id="fdPanel">
             <div>
               <p class="mono">Cabin humidity · FD rating</p>
-              <p class="calc-big" id="fdScore">—</p>
+              <p class="calc-big" id="fdScore">FD08</p>
             </div>
             <div>
-              <p class="calc-sub" id="fdCabin">Select an aircraft to see its cabin humidity rating.</p>
+              <p class="calc-sub" id="fdCabin">Very dry in measured sample</p>
               <div class="fd-scale" id="fdScale" aria-hidden="true"></div>
               <p class="mono fd-legend">FD1 most hydration-favourable · FD10 driest cabin</p>
             </div>
@@ -407,8 +408,8 @@
       <small>UK · Best served chilled · Once opened, consume within 24 hours</small>
     </div>
   </footer>
-  <script src="stockists.js"></script>
-  <script src="fd-ratings.js"></script>
-  <script src="calculator.js"></script>
+  <script src="stockists.js?v=3"></script>
+  <script src="fd-ratings.js?v=3"></script>
+  <script src="calculator.js?v=3"></script>
 </body>
 </html>
