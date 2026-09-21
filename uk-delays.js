@@ -110,6 +110,18 @@
     `;
   }
 
+  function socialQuickLinksHtml(airport) {
+    const meta = ukAirportByIata(airport.iata) || airport;
+    const chips = ukSocialQuickLinks(meta).map((link) => {
+      const network = link.network === "instagram" ? "IG" : "X";
+      return `<a class="delay-social-chip delay-social-chip-${link.network}" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">${network}</span> ${escapeHtml(link.label)}</a>`;
+    }).join("");
+    return `<div class="delay-social-quick">
+      <p class="mono">Search travellers</p>
+      <div class="delay-social-chip-row">${chips}</div>
+    </div>`;
+  }
+
   function airportCard(airport) {
     return `<article class="delay-card ${severityClass(airport.score)}" data-iata="${escapeHtml(airport.iata)}">
       <header class="delay-card-head">
@@ -125,6 +137,7 @@
         <div><dt class="mono">Dep median</dt><dd>${escapeHtml(formatDelay(airport.departures.medianDelay))}</dd></div>
         <div><dt class="mono">Arr median</dt><dd>${escapeHtml(formatDelay(airport.arrivals.medianDelay))}</dd></div>
       </dl>
+      ${socialQuickLinksHtml(airport)}
       <div class="delay-card-actions">
         <button type="button" class="btn delay-load-btn" data-action="flights" data-iata="${escapeHtml(airport.iata)}">Live delays &amp; cancellations</button>
         <button type="button" class="btn delay-load-btn" data-action="social" data-iata="${escapeHtml(airport.iata)}">Travellers online</button>
@@ -169,12 +182,17 @@
   function renderSocialDetail(airport, payload) {
     const links = payload.links || ukSocialLinks(airport);
     const draft = ukOutreachDraft(airport);
+    const quick = ukSocialQuickLinks(airport).map((link) => {
+      const network = link.network === "instagram" ? "IG" : "X";
+      return `<a class="delay-social-chip delay-social-chip-${link.network}" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">${network}</span> ${escapeHtml(link.label)}</a>`;
+    }).join("");
     const linkRow = `
+      <div class="delay-social-chip-row">${quick}</div>
       <div class="delay-social-links">
-        <a class="btn" href="${escapeHtml(links.x)}" target="_blank" rel="noopener noreferrer">Search X (live)</a>
-        <a class="btn" href="${escapeHtml(links.instagram)}" target="_blank" rel="noopener noreferrer">Search Instagram</a>
-        <a class="btn" href="${escapeHtml(links.threads)}" target="_blank" rel="noopener noreferrer">Search Threads</a>
-        <a class="btn" href="${escapeHtml(links.tiktok)}" target="_blank" rel="noopener noreferrer">Search TikTok</a>
+        <a class="btn" href="${escapeHtml(links.x)}" target="_blank" rel="noopener noreferrer">All X results</a>
+        <a class="btn" href="${escapeHtml(links.instagram)}" target="_blank" rel="noopener noreferrer">All Instagram results</a>
+        <a class="btn" href="${escapeHtml(links.threads)}" target="_blank" rel="noopener noreferrer">Threads</a>
+        <a class="btn" href="${escapeHtml(links.tiktok)}" target="_blank" rel="noopener noreferrer">TikTok</a>
       </div>`;
 
     const posts = (payload.posts || []).map((post) => `<article class="delay-post">

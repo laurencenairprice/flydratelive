@@ -27,6 +27,10 @@ function ukAirportByIata(code) {
   return ukAirportRegistry.find((airport) => airport.iata === iata) || null;
 }
 
+function ukAirportSlug(airport) {
+  return String(airport.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 function ukSocialQuery(airport) {
   return `${airport.name} airport delay OR cancelled`;
 }
@@ -34,13 +38,39 @@ function ukSocialQuery(airport) {
 function ukSocialLinks(airport) {
   const query = ukSocialQuery(airport);
   const encoded = encodeURIComponent(query);
-  const tag = encodeURIComponent(`${airport.name.replace(/\s+/g, "")}airport`);
+  const slug = ukAirportSlug(airport);
+  const iata = String(airport.iata || "").toLowerCase();
+  const delayName = encodeURIComponent(`delay ${airport.name}`);
+  const delayAirport = encodeURIComponent(`delay ${airport.name} airport`);
+  const iataDelay = encodeURIComponent(`${airport.iata} delay`);
+
   return {
     x: `https://x.com/search?q=${encoded}&f=live`,
-    instagram: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(airport.name + " airport delay")}`,
+    xDelay: `https://x.com/search?q=${delayName}&f=live`,
+    xDelayAirport: `https://x.com/search?q=${delayAirport}&f=live`,
+    xIata: `https://x.com/search?q=${iataDelay}&f=live`,
+    xHashtag: `https://x.com/hashtag/${encodeURIComponent(`${slug}delay`)}`,
+    instagram: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(`${airport.name} airport delay`)}`,
+    instagramDelay: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(`delay ${airport.name}`)}`,
+    instagramTag: `https://www.instagram.com/explore/tags/${slug}delay/`,
+    instagramTagDelay: `https://www.instagram.com/explore/tags/delay${slug}/`,
+    instagramIata: `https://www.instagram.com/explore/tags/${iata}delay/`,
     threads: `https://www.threads.net/search?q=${encoded}`,
     tiktok: `https://www.tiktok.com/search?q=${encoded}`
   };
+}
+
+function ukSocialQuickLinks(airport) {
+  const links = ukSocialLinks(airport);
+  const slug = ukAirportSlug(airport);
+  return [
+    { network: "x", label: `delay ${airport.name}`, url: links.xDelay },
+    { network: "x", label: `${airport.iata} delay`, url: links.xIata },
+    { network: "x", label: `#${slug}delay`, url: links.xHashtag },
+    { network: "instagram", label: `delay ${airport.name}`, url: links.instagramDelay },
+    { network: "instagram", label: `#${slug}delay`, url: links.instagramTag },
+    { network: "instagram", label: `#delay${slug}`, url: links.instagramTagDelay }
+  ];
 }
 
 function ukOutreachDraft(airport) {

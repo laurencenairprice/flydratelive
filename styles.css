@@ -1238,6 +1238,54 @@ h2 {
   font-weight: 600;
 }
 
+.delay-social-quick {
+  margin: 0 0 12px;
+}
+
+.delay-social-quick > .mono {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+
+.delay-social-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.delay-social-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  text-decoration: none;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.delay-social-chip .mono {
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+}
+
+.delay-social-chip-x {
+  border-color: rgba(7, 16, 22, 0.28);
+}
+
+.delay-social-chip-x:hover {
+  border-color: var(--ink);
+}
+
+.delay-social-chip-instagram {
+  border-color: rgba(193, 53, 132, 0.35);
+}
+
+.delay-social-chip-instagram:hover {
+  border-color: #c13584;
+}
+
 .delay-card-actions {
   display: flex;
   flex-wrap: wrap;
