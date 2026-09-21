@@ -40,7 +40,33 @@
           <button type="button" class="btn btn-solid" id="delayRefresh">Refresh now</button>
         </div>
         <div class="delay-summary" id="delaySummary"></div>
-        <p class="calc-disclaimer">Flight data from AeroDataBox (roughly the last 2 hours). Social search uses public links for X and Instagram; sample public posts may include Mastodon. Always be respectful — only offer help, never spam.</p>
+        <p class="calc-disclaimer">Flight data from AeroDataBox (roughly the last 2 hours). Complaint activity is a proxy from public Mastodon posts and news mentions — not X/Instagram volume. Always be respectful — only offer help, never spam.</p>
+      </div>
+    </section>
+
+    <section class="section delay-heatmaps-section">
+      <div class="wrap">
+        <div class="heatmaps-grid">
+          <article class="heatmap-panel">
+            <header>
+              <p class="mono slashes">Live operations</p>
+              <h2>Delay heat map</h2>
+              <p class="delay-detail-copy">Where disruption is worst right now — brighter, larger nodes mean higher delay index and cancellations in the last ~2 hours.</p>
+            </header>
+            <div id="delayHeatmapMount"></div>
+            <div id="delayHeatBars"></div>
+          </article>
+          <article class="heatmap-panel">
+            <header>
+              <p class="mono slashes">Public frustration</p>
+              <h2>Complaint activity</h2>
+              <p class="delay-detail-copy">Estimated chatter from public posts and news — a stand-in until paid social listening is wired up.</p>
+            </header>
+            <p class="calc-status" id="socialHeatStatus">Loading complaint activity…</p>
+            <div id="socialHeatmapMount"></div>
+            <div id="socialHeatBars"></div>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -69,7 +95,8 @@
       </div>
     </div>
   </footer>
-  <script src="uk-airports.js?v=1"></script>
-  <script src="uk-delays.js?v=1"></script>
+  <script src="uk-airports.js?v=2"></script>
+  <script src="uk-heatmap.js?v=1"></script>
+  <script src="uk-delays.js?v=2"></script>
 </body>
 </html>

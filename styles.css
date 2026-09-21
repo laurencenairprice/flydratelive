@@ -1017,6 +1017,96 @@ h2 {
   line-height: 1;
 }
 
+.delay-heatmaps-section {
+  padding-top: 0;
+}
+
+.heatmaps-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.heatmap-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 18px;
+}
+
+.heatmap-panel h2 {
+  margin: 8px 0 10px;
+}
+
+.uk-heat-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 8px;
+}
+
+.uk-heat-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  fill: #071016;
+}
+
+.uk-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.uk-heat-legend-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.uk-heat-legend-delay {
+  background: linear-gradient(90deg, hsl(190 78% 88%), hsl(0 78% 52%));
+}
+
+.uk-heat-legend-social {
+  background: linear-gradient(90deg, hsl(190 78% 88%), hsl(28 90% 48%));
+}
+
+.uk-activity-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.uk-activity-row {
+  display: grid;
+  grid-template-columns: 3.2em 1fr 1.2fr 4.5em;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.86rem;
+}
+
+.uk-activity-name {
+  color: var(--ink-soft);
+}
+
+.uk-activity-track {
+  height: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.uk-activity-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), #d35400);
+}
+
+.uk-activity-value {
+  text-align: right;
+}
+
 .delay-board-section {
   padding-top: 0;
 }
@@ -1224,10 +1314,24 @@ h2 {
   .footer-grid,
   .nav-links,
   .delay-board,
-  .delay-summary {
+  .delay-summary,
+  .heatmaps-grid {
     grid-template-columns: 1fr;
     display: grid;
   }
+
+  .uk-activity-row {
+    grid-template-columns: 3.2em 1fr;
+    grid-template-areas:
+      "code name"
+      "track track"
+      "value value";
+  }
+
+  .uk-activity-code { grid-area: code; }
+  .uk-activity-name { grid-area: name; }
+  .uk-activity-track { grid-area: track; }
+  .uk-activity-value { grid-area: value; text-align: left; }
 
   .nav-links {
     display: none;

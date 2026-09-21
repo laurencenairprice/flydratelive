@@ -231,6 +231,111 @@ function stripHtml(value) {
   return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+const COMPLAINT_PATTERN = /\b(delay(?:ed|s)?|cancel(?:led|lation|ing)?|queue|queued|stuck|stranded|nightmare|hours?\s+(?:waiting|wait)|missed\s+connection|divert(?:ed|ed)?)\b/i;
+
+function scoreComplaintText(text, airport) {
+  const body = String(text || "");
+  if (!body) return 0;
+  let score = 0;
+  if (COMPLAINT_PATTERN.test(body)) score += 2;
+  if (new RegExp(`\\b${airport.iata}\\b`, "i").test(body)) score += 1;
+  if (new RegExp(airport.name.replace(/\s+/g, "\\s+"), "i").test(body)) score += 1;
+  return score;
+}
+
+async function searchMastodonPosts(airport, limit = 8) {
+  try {
+    const mastodonQuery = encodeURIComponent(`${airport.name} delay airport`);
+    const response = await fetch(
+      `https://mastodon.social/api/v2/search?q=${mastodonQuery}&limit=${limit}&type=statuses`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!response.ok) return [];
+    const payload = await response.json();
+    return (payload.statuses || [])
+      .map((status) => ({
+        network: "mastodon",
+        author: status.account?.display_name || status.account?.username || "Unknown",
+        handle: status.account?.acct ? `@${status.account.acct}` : "",
+        profileUrl: status.account?.url || null,
+        postUrl: status.url || null,
+        text: stripHtml(status.content).slice(0, 280),
+        createdAt: status.created_at || null,
+        complaintScore: scoreComplaintText(stripHtml(status.content), airport)
+      }))
+      .filter((post) => post.text.length > 20);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchNewsChatterCount(airport) {
+  try {
+    const query = encodeURIComponent(`${airport.name} airport delay OR cancelled`);
+    const response = await fetch(
+      `https://news.google.com/rss/search?q=${query}&hl=en-GB&gl=GB&ceid=GB:en`,
+      { headers: { "User-Agent": "FlydrateDelayBoard/1.0 (+https://flydrate.com)" } }
+    );
+    if (!response.ok) return 0;
+    const xml = await response.text();
+    return Math.min((xml.match(/<item>/g) || []).length, 100);
+  } catch {
+    return 0;
+  }
+}
+
+function buildSocialLinks(airport) {
+  const query = `${airport.name} airport delay OR cancelled flight`;
+  const encoded = encodeURIComponent(query);
+  return {
+    x: `https://x.com/search?q=${encoded}&f=live`,
+    instagram: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(`${airport.name} airport delay`)}`,
+    threads: `https://www.threads.net/search?q=${encoded}`,
+    tiktok: `https://www.tiktok.com/search?q=${encoded}`
+  };
+}
+
+function activityScoreFromSignals(posts, newsCount) {
+  const postCount = posts.length;
+  const complaintPosts = posts.filter((post) => post.complaintScore >= 2).length;
+  const complaintWeight = posts.reduce((sum, post) => sum + post.complaintScore, 0);
+  const raw = complaintPosts * 18 + complaintWeight * 8 + postCount * 6 + newsCount * 4;
+  return {
+    activityScore: Math.min(100, Math.round(raw)),
+    postCount,
+    complaintPosts,
+    newsCount
+  };
+}
+
+async function fetchAirportSocialActivity(airport) {
+  const posts = await searchMastodonPosts(airport, 10);
+  const newsCount = await fetchNewsChatterCount(airport);
+  const metrics = activityScoreFromSignals(posts, newsCount);
+  return {
+    iata: airport.iata,
+    name: airport.name,
+    ...metrics,
+    samplePosts: posts.slice(0, 3)
+  };
+}
+
+async function fetchSocialActivityHeatmap() {
+  const chunkSize = 5;
+  const airports = [];
+  for (let index = 0; index < UK_AIRPORTS.length; index += chunkSize) {
+    const slice = UK_AIRPORTS.slice(index, index + chunkSize);
+    const batch = await Promise.all(slice.map((airport) => fetchAirportSocialActivity(airport)));
+    airports.push(...batch);
+  }
+  airports.sort((a, b) => b.activityScore - a.activityScore);
+  return {
+    airports,
+    note: "Activity index combines public Mastodon posts and Google News mentions. It is a proxy for traveller frustration — not a full X/Instagram firehose.",
+    updatedAt: new Date().toISOString()
+  };
+}
+
 async function fetchSocialSignals(iata) {
   const airport = UK_BY_IATA[String(iata || "").toUpperCase()];
   if (!airport) {
@@ -238,44 +343,18 @@ async function fetchSocialSignals(iata) {
   }
 
   const query = `${airport.name} airport delay OR cancelled flight`;
-  const encoded = encodeURIComponent(query);
-  const links = {
-    x: `https://x.com/search?q=${encoded}&f=live`,
-    instagram: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(`${airport.name} airport delay`)}`,
-    threads: `https://www.threads.net/search?q=${encoded}`,
-    tiktok: `https://www.tiktok.com/search?q=${encoded}`
-  };
-
-  let posts = [];
-  try {
-    const mastodonQuery = encodeURIComponent(`${airport.name} delay airport`);
-    const response = await fetch(
-      `https://mastodon.social/api/v2/search?q=${mastodonQuery}&limit=8&type=statuses`,
-      { headers: { Accept: "application/json" } }
-    );
-    if (response.ok) {
-      const payload = await response.json();
-      posts = (payload.statuses || [])
-        .map((status) => ({
-          network: "mastodon",
-          author: status.account?.display_name || status.account?.username || "Unknown",
-          handle: status.account?.acct ? `@${status.account.acct}` : "",
-          profileUrl: status.account?.url || null,
-          postUrl: status.url || null,
-          text: stripHtml(status.content).slice(0, 280),
-          createdAt: status.created_at || null
-        }))
-        .filter((post) => post.text.length > 20);
-    }
-  } catch {
-    posts = [];
-  }
+  const links = buildSocialLinks(airport);
+  const posts = await searchMastodonPosts(airport, 8);
+  const newsCount = await fetchNewsChatterCount(airport);
+  const metrics = activityScoreFromSignals(posts, newsCount);
 
   return {
     airport,
     query,
     links,
     posts,
+    newsCount,
+    activityScore: metrics.activityScore,
     note: "X and Instagram do not offer a free live search API. Use the platform links to find recent posts, and reach out from @flydrateofficial.",
     updatedAt: new Date().toISOString()
   };
@@ -338,6 +417,11 @@ export default {
     if (url.pathname === "/api/uk-delays/social") {
       const payload = await fetchSocialSignals(url.searchParams.get("iata"));
       if (payload.error) return jsonResponse({ error: payload.error }, payload.status || 502);
+      return jsonResponse(payload, 200, 300);
+    }
+
+    if (url.pathname === "/api/uk-delays/social-activity") {
+      const payload = await fetchSocialActivityHeatmap();
       return jsonResponse(payload, 200, 300);
     }
 

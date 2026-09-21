@@ -44,6 +44,52 @@
     return String(value).replace(/^PT/i, "").replace(/(\d+)M/i, "$1m").replace(/(\d+)H/i, "$1h ");
   }
 
+  function heatPointsFromAirports(airports, valuePicker) {
+    return airports.map((airport) => {
+      const meta = ukAirportByIata(airport.iata);
+      if (!meta) return null;
+      return {
+        iata: airport.iata,
+        name: airport.name || meta.name,
+        lat: meta.lat,
+        lon: meta.lon,
+        value: valuePicker(airport)
+      };
+    }).filter(Boolean);
+  }
+
+  function renderDelayHeatmaps(airports) {
+    const points = heatPointsFromAirports(airports, (airport) => airport.score || 0);
+    const delayMount = $("delayHeatmapMount");
+    const delayBars = $("delayHeatBars");
+    if (!delayMount || !delayBars) return;
+    delayMount.innerHTML = ukHeatmapSvg(points, {
+      title: "UK airport delay heat map",
+      maxValue: 5,
+      getValue: (point) => point.value
+    }) + ukHeatLegend("High disruption", "delay");
+    delayBars.innerHTML = ukActivityBars(points, (point) => point.value, (value) => value.toFixed(1));
+  }
+
+  function renderSocialHeatmaps(payload) {
+    const socialMount = $("socialHeatmapMount");
+    const socialBars = $("socialHeatBars");
+    const status = $("socialHeatStatus");
+    if (!socialMount || !socialBars) return;
+    const airports = payload?.airports || [];
+    const points = heatPointsFromAirports(airports, (airport) => airport.activityScore || 0);
+    socialMount.innerHTML = ukHeatmapSvg(points, {
+      title: "UK airport complaint activity heat map",
+      maxValue: 100,
+      getValue: (point) => point.value
+    }) + ukHeatLegend("High activity", "social");
+    socialBars.innerHTML = ukActivityBars(points, (point) => point.value, (value) => `${Math.round(value)} / 100`);
+    if (status) {
+      status.textContent = payload?.note || "Complaint activity refreshed.";
+      status.dataset.tone = "ok";
+    }
+  }
+
   function renderSummary(airports) {
     const disrupted = airports.filter((airport) => airport.score >= 2 || airport.cancelledTotal > 0);
     $("delaySummary").innerHTML = `
@@ -141,8 +187,13 @@
       </p>
     </article>`).join("");
 
+    const activityLine = typeof payload.activityScore === "number"
+      ? `<p class="delay-detail-copy"><strong>Complaint activity index:</strong> ${payload.activityScore} / 100${payload.newsCount ? ` · ${payload.newsCount} recent news mentions` : ""}</p>`
+      : "";
+
     return `
       <p class="mono delay-detail-kicker">Reach travellers talking about ${escapeHtml(airport.name)}</p>
+      ${activityLine}
       <p class="delay-detail-copy">${escapeHtml(payload.note || "")}</p>
       ${linkRow}
       <label class="mono" for="outreach-${escapeHtml(airport.iata)}">Suggested DM / reply</label>
@@ -158,9 +209,29 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Could not load delays.");
       renderBoard(payload);
+      renderDelayHeatmaps(payload.airports || []);
       setStatus("Live disruption board refreshed.", "ok");
     } catch (error) {
       setStatus(error.message || "Could not load delays.", "error");
+    }
+  }
+
+  async function loadSocialHeatmap() {
+    const status = $("socialHeatStatus");
+    if (status) {
+      status.textContent = "Loading complaint activity…";
+      status.dataset.tone = "info";
+    }
+    try {
+      const response = await fetch(`${flightApiBase()}/api/uk-delays/social-activity`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not load complaint activity.");
+      renderSocialHeatmaps(payload);
+    } catch (error) {
+      if (status) {
+        status.textContent = error.message || "Complaint activity unavailable until the Worker is redeployed.";
+        status.dataset.tone = "error";
+      }
     }
   }
 
@@ -201,10 +272,15 @@
       }
     });
 
-    $("delayRefresh")?.addEventListener("click", () => loadBoard());
+    $("delayRefresh")?.addEventListener("click", () => {
+      loadBoard();
+      loadSocialHeatmap();
+    });
   }
 
   bindBoard();
   loadBoard();
+  loadSocialHeatmap();
   setInterval(loadBoard, REFRESH_MS);
+  setInterval(loadSocialHeatmap, REFRESH_MS);
 })();
