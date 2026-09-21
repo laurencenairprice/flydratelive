@@ -1019,7 +1019,7 @@ h2 {
 
 .delay-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin: 20px 0 8px;
 }
@@ -1242,6 +1242,12 @@ h2 {
 .delay-metrics dd {
   margin: 0;
   font-weight: 600;
+}
+
+.delay-post-caption {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .delay-social-quick {

@@ -56,6 +56,7 @@ function ukDemoSocialPayload() {
       activityScore: scores[meta.iata] || 8,
       postCount: scores[meta.iata] ? 6 : 0,
       complaintPosts: scores[meta.iata] ? 4 : 0,
+      peoplePosting: scores[meta.iata] ? 6 : 0,
       newsCount: scores[meta.iata] ? 8 : 0
     })).sort((a, b) => b.activityScore - a.activityScore),
     demo: true
