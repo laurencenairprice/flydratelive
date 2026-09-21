@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" data-flight-api="https://flydrate-flight-api.flydratelive.workers.dev">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FLYDRATE — UK airport delay board</title>
+  <meta name="description" content="Live UK airport delays, cancellations, and links to travellers posting about disruption — for Flydrate outreach.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand-lockup" href="index.html">
+        <img src="assets/mark.jpg" alt="">
+        <span>FLYDRATE</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="index.html">Calculator</a>
+        <a href="uk-delays.html" aria-current="page">UK delays</a>
+        <a class="btn btn-solid" href="https://flydrate.com">Shop</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section delay-hero">
+      <div class="wrap">
+        <p class="mono slashes section-kicker">Internal · outreach</p>
+        <h1>UK airport disruption board</h1>
+        <p class="lede">Live delay and cancellation signals across UK airports, plus shortcuts to find travellers posting about long waits — so you can offer a Flydrate where it helps.</p>
+        <div class="delay-toolbar">
+          <p class="calc-status" id="delayStatus">Loading…</p>
+          <p class="mono" id="delayUpdated"></p>
+          <button type="button" class="btn btn-solid" id="delayRefresh">Refresh now</button>
+        </div>
+        <div class="delay-summary" id="delaySummary"></div>
+        <p class="calc-disclaimer">Flight data from AeroDataBox (roughly the last 2 hours). Social search uses public links for X and Instagram; sample public posts may include Mastodon. Always be respectful — only offer help, never spam.</p>
+      </div>
+    </section>
+
+    <section class="section delay-board-section">
+      <div class="wrap">
+        <div class="delay-board" id="delayBoard"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-grid">
+      <div>
+        <img src="assets/mark.jpg" alt="FLYDRATE" style="width:72px;height:72px;object-fit:cover;border-radius:50%;border:1px solid rgba(45,185,199,.45);margin-bottom:16px">
+        <p>Cabin Balance Ltd, trading as Flydrate. Internal delay board — not linked from the public homepage.</p>
+      </div>
+      <div>
+        <p class="mono">Outreach</p>
+        <p><a href="https://instagram.com/flydrateofficial">@flydrateofficial</a><br>
+        <a href="mailto:roger@flydrate.co.uk">roger@flydrate.co.uk</a></p>
+      </div>
+      <div>
+        <p class="mono">Main site</p>
+        <p><a href="index.html">Flight calculator</a><br>
+        <a href="https://flydrate.com">flydrate.com</a></p>
+      </div>
+    </div>
+  </footer>
+  <script src="uk-airports.js?v=1"></script>
+  <script src="uk-delays.js?v=1"></script>
+</body>
+</html>

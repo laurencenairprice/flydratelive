@@ -1,0 +1,23 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "",
+  "main": "calculator.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laurencenairprice/flydratelive.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/laurencenairprice/flydratelive/issues"
+  },
+  "homepage": "https://github.com/laurencenairprice/flydratelive#readme",
+  "devDependencies": {
+    "wrangler": "^4.136.1"
+  }
+}
