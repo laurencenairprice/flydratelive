@@ -2,6 +2,43 @@
   const REFRESH_MS = 5 * 60 * 1000;
   let demoMode = false;
   let refreshTimer = null;
+  let viewingHistorical = false;
+
+  function ukTodayInputValue() {
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  }
+
+  function initDateControls() {
+    const dateInput = $("delayDate");
+    if (!dateInput) return;
+    dateInput.value = ukTodayInputValue();
+    dateInput.max = ukTodayInputValue();
+  }
+
+  function boardQueryString() {
+    const date = $("delayDate")?.value;
+    const hour = $("delayHour")?.value || "14";
+    if (!date) return "";
+    const params = new URLSearchParams({ date, hour });
+    return `?${params.toString()}`;
+  }
+
+  function updateViewModeLabels(payload) {
+    viewingHistorical = Boolean(payload?.historical);
+    const date = $("delayDate")?.value || ukTodayInputValue();
+    const hour = $("delayHour")?.value || "14";
+    const updated = $("delayUpdated");
+    if (!updated) return;
+    if (demoMode) {
+      updated.textContent = "Demo data · not live";
+      return;
+    }
+    if (viewingHistorical) {
+      updated.textContent = `Historical view · ${date} at ${hour}:00 UK`;
+    } else if (payload?.updatedAt) {
+      updated.textContent = `Live · updated ${new Date(payload.updatedAt).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+    }
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -192,9 +229,7 @@
     const airports = payload.airports || [];
     renderSummary(airports);
     root.innerHTML = airports.map(airportCard).join("");
-    $("delayUpdated").textContent = payload.updatedAt
-      ? `Updated ${new Date(payload.updatedAt).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
-      : "";
+    updateViewModeLabels(payload);
   }
 
   function renderFlightsDetail(airport, payload) {
@@ -278,7 +313,7 @@
     $("socialHeatStatus").textContent = "Demo complaint activity loaded.";
     $("socialHeatStatus").dataset.tone = "ok";
     setStatus("Demo scenario active — Heathrow/Gatwick/Manchester under stress.", "ok");
-    $("delayUpdated").textContent = "Demo data · not live";
+    updateViewModeLabels({ historical: false });
   }
 
   function exitDemoScenario() {
@@ -305,9 +340,10 @@
     setStatus("Loading live UK airport disruption…");
     try {
       const base = flightApiBase();
+      const query = boardQueryString();
       const [delayResponse, socialResponse] = await Promise.all([
-        fetch(`${base}/api/uk-delays`),
-        fetch(`${base}/api/uk-delays/social-activity`)
+        fetch(`${base}/api/uk-delays${query}`),
+        fetch(`${base}/api/uk-delays/social-activity${query}`)
       ]);
       const delayPayload = await delayResponse.json();
       if (!delayResponse.ok) throw new Error(delayPayload.error || "Could not load delays.");
@@ -372,7 +408,18 @@
   }
 
   async function loadAlertPreview() {
-    if (demoMode) return;
+    if (demoMode || viewingHistorical) {
+      if (viewingHistorical) {
+        const status = $("alertStatus");
+        const list = $("alertPreviewList");
+        if (status) {
+          status.textContent = "Early-warning alerts are live-only. Set the date to today to preview notifications.";
+          status.dataset.tone = "info";
+        }
+        if (list) list.innerHTML = "";
+      }
+      return;
+    }
     try {
       const response = await fetch(`${flightApiBase()}/api/uk-delays/alerts/preview`);
       const payload = await response.json();
@@ -402,7 +449,14 @@
     target.innerHTML = `<p class="delay-detail-copy">Loading…</p>`;
     try {
       const path = action === "social" ? "/api/uk-delays/social" : "/api/uk-delays/flights";
-      const response = await fetch(`${flightApiBase()}${path}?iata=${encodeURIComponent(iata)}`);
+      const params = new URLSearchParams({ iata });
+      const date = $("delayDate")?.value;
+      const hour = $("delayHour")?.value || "14";
+      if (date) {
+        params.set("date", date);
+        params.set("hour", hour);
+      }
+      const response = await fetch(`${flightApiBase()}${path}?${params.toString()}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Request failed.");
       target.innerHTML = action === "social"
@@ -440,16 +494,29 @@
       if (demoMode) exitDemoScenario();
       else applyDemoScenario();
     });
+
+    $("delayApplyDate")?.addEventListener("click", () => {
+      if (demoMode) exitDemoScenario();
+      refreshAllLive();
+    });
+
+    $("delayDate")?.addEventListener("change", () => {
+      const dateInput = $("delayDate");
+      if (dateInput?.value === ukTodayInputValue()) refreshAllLive();
+    });
   }
 
   function startRefreshTimer() {
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(() => {
-      if (!demoMode) refreshAllLive();
+      if (!demoMode && !viewingHistorical && $("delayDate")?.value === ukTodayInputValue()) {
+        refreshAllLive();
+      }
     }, REFRESH_MS);
   }
 
   bindBoard();
+  initDateControls();
   refreshAllLive();
   startRefreshTimer();
 

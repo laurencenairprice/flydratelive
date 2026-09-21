@@ -1009,6 +1009,29 @@ h2 {
   background: var(--ink);
 }
 
+.delay-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin: 18px 0 0;
+}
+
+.delay-date-row label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+}
+
+.delay-date-row input,
+.delay-date-row select {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  min-width: 10rem;
+}
+
 .delay-toolbar {
   display: flex;
   flex-wrap: wrap;

@@ -38,6 +38,23 @@
           <p class="mono">Demo mode</p>
           <p>Simulated London/Midlands disruption — sample heat maps, alerts, and outreach panels. No live API data.</p>
         </div>
+        <div class="delay-date-row">
+          <div>
+            <label class="mono" for="delayDate">View date (UK)</label>
+            <input id="delayDate" name="delayDate" type="date">
+          </div>
+          <div>
+            <label class="mono" for="delayHour">Snapshot time (UK)</label>
+            <select id="delayHour" aria-label="Snapshot hour UK">
+              <option value="8">08:00</option>
+              <option value="12">12:00</option>
+              <option value="14" selected>14:00</option>
+              <option value="18">18:00</option>
+              <option value="21">21:00</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-solid" id="delayApplyDate">Load day</button>
+        </div>
         <div class="delay-toolbar">
           <p class="calc-status" id="delayStatus">Loading…</p>
           <p class="mono" id="delayUpdated"></p>
@@ -45,7 +62,7 @@
           <button type="button" class="btn btn-solid" id="delayRefresh">Refresh live data</button>
         </div>
         <div class="delay-summary" id="delaySummary"></div>
-        <p class="calc-disclaimer">Flight data from AeroDataBox (roughly the last 2 hours). Complaint activity is a proxy from public Mastodon posts and news mentions — not X/Instagram volume. Always be respectful — only offer help, never spam.</p>
+        <p class="calc-disclaimer">Pick a UK date to replay that day: delay snapshot at the chosen hour, disrupted flights across the day, and public posts/news tagged to that date. Today uses live data. Social history is limited to what public feeds still expose.</p>
       </div>
     </section>
 
@@ -117,6 +134,6 @@
   <script src="uk-map.js?v=1"></script>
   <script src="uk-heatmap.js?v=2"></script>
   <script src="uk-delays-demo.js?v=1"></script>
-  <script src="uk-delays.js?v=6"></script>
+  <script src="uk-delays.js?v=7"></script>
 </body>
 </html>

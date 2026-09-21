@@ -39,6 +39,49 @@ const UK_AIRPORTS = [
 const UK_BY_ICAO = Object.fromEntries(UK_AIRPORTS.map((airport) => [airport.icao, airport]));
 const UK_BY_IATA = Object.fromEntries(UK_AIRPORTS.map((airport) => [airport.iata, airport]));
 
+function ukTodayString() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+}
+
+function parseBoardDate(url) {
+  const date = String(url.searchParams.get("date") || "").trim();
+  const hourRaw = parseInt(url.searchParams.get("hour") || "14", 10);
+  const hour = Number.isFinite(hourRaw) ? Math.min(23, Math.max(0, hourRaw)) : 14;
+  if (!date) {
+    return { live: true, date: ukTodayString(), hour, snapshotLocal: null };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { error: "Use date format YYYY-MM-DD." };
+  }
+  const snapshotLocal = `${date}T${String(hour).padStart(2, "0")}:00`;
+  return {
+    live: date === ukTodayString(),
+    date,
+    hour,
+    snapshotLocal,
+    historical: date !== ukTodayString()
+  };
+}
+
+function ukDateFromIso(isoString) {
+  if (!isoString) return "";
+  return new Date(isoString).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+}
+
+function countNewsItemsOnDate(xml, dateStr) {
+  const chunks = xml.split("<item>").slice(1);
+  let count = 0;
+  for (const chunk of chunks) {
+    const match = chunk.match(/<pubDate>([^<]+)<\/pubDate>/);
+    if (!match) continue;
+    const parsed = new Date(match[1].trim());
+    if (!Number.isNaN(parsed.getTime()) && ukDateFromIso(parsed.toISOString()) === dateStr) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 function jsonResponse(body, status = 200, cacheSeconds = 0) {
   const headers = {
     ...corsHeaders,
@@ -136,10 +179,36 @@ function mapUkDelayRow(row) {
   };
 }
 
-async function fetchUkDelays(env) {
+async function fetchUkDelays(env, boardDate) {
   if (!env.RAPIDAPI_KEY) {
     return { error: "Flight lookup is not configured.", status: 500 };
   }
+
+  if (boardDate?.historical && boardDate.snapshotLocal) {
+    const chunkSize = 5;
+    const rows = [];
+    for (let index = 0; index < UK_AIRPORTS.length; index += chunkSize) {
+      const slice = UK_AIRPORTS.slice(index, index + chunkSize);
+      const batch = await Promise.all(slice.map(async (airport) => {
+        const single = await aerodataboxFetch(
+          `/airports/iata/${airport.iata}/delays/${boardDate.snapshotLocal}`,
+          env
+        );
+        if (single.status >= 400) return null;
+        return normaliseDelayRows(single.data).map(mapUkDelayRow).filter(Boolean)[0] || null;
+      }));
+      rows.push(...batch.filter(Boolean));
+    }
+    rows.sort((a, b) => b.score - a.score || b.cancelledTotal - a.cancelledTotal);
+    return {
+      airports: rows,
+      viewDate: boardDate.date,
+      snapshotLocal: boardDate.snapshotLocal,
+      historical: true,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
   const global = await aerodataboxFetch("/airports/delays", env);
   if (global.status >= 400) {
     return { error: global.data?.message || "Could not load airport delays.", status: global.status };
@@ -161,7 +230,12 @@ async function fetchUkDelays(env) {
   }
 
   rows.sort((a, b) => b.score - a.score || b.cancelledTotal - a.cancelledTotal);
-  return { airports: rows, updatedAt: new Date().toISOString() };
+  return {
+    airports: rows,
+    viewDate: boardDate?.date || ukTodayString(),
+    historical: false,
+    updatedAt: new Date().toISOString()
+  };
 }
 
 function flightStatusLabel(flight) {
@@ -196,18 +270,8 @@ function simplifyFlight(flight, direction) {
   };
 }
 
-async function fetchUkAirportFlights(iata, env) {
-  if (!env.RAPIDAPI_KEY) {
-    return { error: "Flight lookup is not configured.", status: 500 };
-  }
-  const airport = UK_BY_IATA[String(iata || "").toUpperCase()];
-  if (!airport) {
-    return { error: "Unknown UK airport.", status: 400 };
-  }
-
+async function fetchFlightsForRange(airport, fromLocal, toLocal, env) {
   const query = [
-    "offsetMinutes=-240",
-    "durationMinutes=360",
     "withLeg=true",
     "direction=Both",
     "withCancelled=true",
@@ -216,21 +280,72 @@ async function fetchUkAirportFlights(iata, env) {
     "withPrivate=false",
     "withLocation=false"
   ].join("&");
-
-  const upstream = await aerodataboxFetch(`/flights/airports/iata/${airport.iata}?${query}`, env);
+  const upstream = await aerodataboxFetch(
+    `/flights/airports/iata/${airport.iata}/${fromLocal}/${toLocal}?${query}`,
+    env
+  );
   if (upstream.status >= 400) {
-    return { error: upstream.data?.message || "Could not load flights.", status: upstream.status };
+    return { departures: [], arrivals: [], error: upstream.data?.message || "Could not load flights." };
+  }
+  return {
+    departures: upstream.data?.departures || [],
+    arrivals: upstream.data?.arrivals || []
+  };
+}
+
+async function fetchUkAirportFlights(iata, env, boardDate) {
+  if (!env.RAPIDAPI_KEY) {
+    return { error: "Flight lookup is not configured.", status: 500 };
+  }
+  const airport = UK_BY_IATA[String(iata || "").toUpperCase()];
+  if (!airport) {
+    return { error: "Unknown UK airport.", status: 400 };
   }
 
-  const departures = (upstream.data?.departures || []).filter(isDisruptedFlight).map((flight) => simplifyFlight(flight, "Departure"));
-  const arrivals = (upstream.data?.arrivals || []).filter(isDisruptedFlight).map((flight) => simplifyFlight(flight, "Arrival"));
-  const flights = [...departures, ...arrivals]
+  let departures = [];
+  let arrivals = [];
+
+  if (boardDate?.historical && boardDate.date) {
+    const day = boardDate.date;
+    const windows = [
+      [`${day}T06:00`, `${day}T18:00`],
+      [`${day}T18:00`, `${day}T23:59`]
+    ];
+    for (const [fromLocal, toLocal] of windows) {
+      const chunk = await fetchFlightsForRange(airport, fromLocal, toLocal, env);
+      departures = departures.concat(chunk.departures);
+      arrivals = arrivals.concat(chunk.arrivals);
+    }
+  } else {
+    const query = [
+      "offsetMinutes=-240",
+      "durationMinutes=360",
+      "withLeg=true",
+      "direction=Both",
+      "withCancelled=true",
+      "withCodeshared=true",
+      "withCargo=false",
+      "withPrivate=false",
+      "withLocation=false"
+    ].join("&");
+    const upstream = await aerodataboxFetch(`/flights/airports/iata/${airport.iata}?${query}`, env);
+    if (upstream.status >= 400) {
+      return { error: upstream.data?.message || "Could not load flights.", status: upstream.status };
+    }
+    departures = upstream.data?.departures || [];
+    arrivals = upstream.data?.arrivals || [];
+  }
+
+  const flights = [...departures.filter(isDisruptedFlight).map((flight) => simplifyFlight(flight, "Departure")),
+    ...arrivals.filter(isDisruptedFlight).map((flight) => simplifyFlight(flight, "Arrival"))]
     .sort((a, b) => String(b.delay || "").localeCompare(String(a.delay || "")))
     .slice(0, 40);
 
   return {
     airport,
     flights,
+    viewDate: boardDate?.date || ukTodayString(),
+    historical: Boolean(boardDate?.historical),
     updatedAt: new Date().toISOString()
   };
 }
@@ -251,11 +366,11 @@ function scoreComplaintText(text, airport) {
   return score;
 }
 
-async function searchMastodonPosts(airport, limit = 8) {
+async function searchMastodonPosts(airport, limit = 8, filterDate = null) {
   try {
     const mastodonQuery = encodeURIComponent(`${airport.name} delay airport`);
     const response = await fetch(
-      `https://mastodon.social/api/v2/search?q=${mastodonQuery}&limit=${limit}&type=statuses`,
+      `https://mastodon.social/api/v2/search?q=${mastodonQuery}&limit=${Math.max(limit, filterDate ? 40 : limit)}&type=statuses`,
       { headers: { Accept: "application/json" } }
     );
     if (!response.ok) return [];
@@ -271,13 +386,15 @@ async function searchMastodonPosts(airport, limit = 8) {
         createdAt: status.created_at || null,
         complaintScore: scoreComplaintText(stripHtml(status.content), airport)
       }))
-      .filter((post) => post.text.length > 20);
+      .filter((post) => post.text.length > 20)
+      .filter((post) => !filterDate || ukDateFromIso(post.createdAt) === filterDate)
+      .slice(0, limit);
   } catch {
     return [];
   }
 }
 
-async function fetchNewsChatterCount(airport) {
+async function fetchNewsChatterCount(airport, filterDate = null) {
   try {
     const query = encodeURIComponent(`${airport.name} airport delay OR cancelled`);
     const response = await fetch(
@@ -286,6 +403,9 @@ async function fetchNewsChatterCount(airport) {
     );
     if (!response.ok) return 0;
     const xml = await response.text();
+    if (filterDate) {
+      return countNewsItemsOnDate(xml, filterDate);
+    }
     return Math.min((xml.match(/<item>/g) || []).length, 100);
   } catch {
     return 0;
@@ -316,9 +436,10 @@ function activityScoreFromSignals(posts, newsCount) {
   };
 }
 
-async function fetchAirportSocialActivity(airport) {
-  const posts = await searchMastodonPosts(airport, 10);
-  const newsCount = await fetchNewsChatterCount(airport);
+async function fetchAirportSocialActivity(airport, boardDate) {
+  const filterDate = boardDate?.historical ? boardDate.date : null;
+  const posts = await searchMastodonPosts(airport, 10, filterDate);
+  const newsCount = await fetchNewsChatterCount(airport, filterDate);
   const metrics = activityScoreFromSignals(posts, newsCount);
   return {
     iata: airport.iata,
@@ -328,23 +449,28 @@ async function fetchAirportSocialActivity(airport) {
   };
 }
 
-async function fetchSocialActivityHeatmap() {
+async function fetchSocialActivityHeatmap(boardDate) {
   const chunkSize = 5;
   const airports = [];
   for (let index = 0; index < UK_AIRPORTS.length; index += chunkSize) {
     const slice = UK_AIRPORTS.slice(index, index + chunkSize);
-    const batch = await Promise.all(slice.map((airport) => fetchAirportSocialActivity(airport)));
+    const batch = await Promise.all(slice.map((airport) => fetchAirportSocialActivity(airport, boardDate)));
     airports.push(...batch);
   }
   airports.sort((a, b) => b.activityScore - a.activityScore);
+  const historicalNote = boardDate?.historical
+    ? " Historical post counts only include public posts and news items that match the selected UK date."
+    : "";
   return {
     airports,
-    note: "Activity index combines public Mastodon posts and Google News mentions. It is a proxy for traveller frustration — not a full X/Instagram firehose.",
+    viewDate: boardDate?.date || ukTodayString(),
+    historical: Boolean(boardDate?.historical),
+    note: `Activity index combines public Mastodon posts and Google News mentions.${historicalNote} X/Instagram are link-only.`,
     updatedAt: new Date().toISOString()
   };
 }
 
-async function fetchSocialSignals(iata) {
+async function fetchSocialSignals(iata, boardDate) {
   const airport = UK_BY_IATA[String(iata || "").toUpperCase()];
   if (!airport) {
     return { error: "Unknown UK airport.", status: 400 };
@@ -352,8 +478,9 @@ async function fetchSocialSignals(iata) {
 
   const query = `${airport.name} airport delay OR cancelled flight`;
   const links = buildSocialLinks(airport);
-  const posts = await searchMastodonPosts(airport, 8);
-  const newsCount = await fetchNewsChatterCount(airport);
+  const filterDate = boardDate?.historical ? boardDate.date : null;
+  const posts = await searchMastodonPosts(airport, 8, filterDate);
+  const newsCount = await fetchNewsChatterCount(airport, filterDate);
   const metrics = activityScoreFromSignals(posts, newsCount);
 
   return {
@@ -363,6 +490,8 @@ async function fetchSocialSignals(iata) {
     posts,
     newsCount,
     activityScore: metrics.activityScore,
+    viewDate: boardDate?.date || ukTodayString(),
+    historical: Boolean(boardDate?.historical),
     note: "X and Instagram do not offer a free live search API. Use the platform links to find recent posts, and reach out from @flydrateofficial.",
     updatedAt: new Date().toISOString()
   };
@@ -488,29 +617,50 @@ export default {
     }
 
     if (url.pathname === "/api/uk-delays") {
-      const payload = await fetchUkDelays(env);
+      const boardDate = parseBoardDate(url);
+      if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
+      const payload = await fetchUkDelays(env, boardDate);
       if (payload.error) return jsonResponse({ error: payload.error }, payload.status || 502);
-      return jsonResponse(payload, 200, 120);
+      return jsonResponse(payload, 200, boardDate.historical ? 600 : 120);
     }
 
     if (url.pathname === "/api/uk-delays/flights") {
-      const payload = await fetchUkAirportFlights(url.searchParams.get("iata"), env);
+      const boardDate = parseBoardDate(url);
+      if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
+      const payload = await fetchUkAirportFlights(url.searchParams.get("iata"), env, boardDate);
       if (payload.error) return jsonResponse({ error: payload.error }, payload.status || 502);
-      return jsonResponse(payload, 200, 90);
+      return jsonResponse(payload, 200, boardDate.historical ? 600 : 90);
     }
 
     if (url.pathname === "/api/uk-delays/social") {
-      const payload = await fetchSocialSignals(url.searchParams.get("iata"));
+      const boardDate = parseBoardDate(url);
+      if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
+      const payload = await fetchSocialSignals(url.searchParams.get("iata"), boardDate);
       if (payload.error) return jsonResponse({ error: payload.error }, payload.status || 502);
       return jsonResponse(payload, 200, 300);
     }
 
     if (url.pathname === "/api/uk-delays/social-activity") {
-      const payload = await fetchSocialActivityHeatmap();
+      const boardDate = parseBoardDate(url);
+      if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
+      const payload = await fetchSocialActivityHeatmap(boardDate);
       return jsonResponse(payload, 200, 300);
     }
 
     if (url.pathname === "/api/uk-delays/alerts/preview") {
+      const boardDate = parseBoardDate(url);
+      if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
+      if (boardDate.historical) {
+        return jsonResponse({
+          checkedAt: new Date().toISOString(),
+          channelsConfigured: alertChannelsConfigured(env),
+          snapshotSaved: false,
+          alerts: [],
+          wouldNotify: [],
+          historical: true,
+          note: "Early-warning alerts only run for live data. Switch the date to today for alert preview."
+        }, 200, 30);
+      }
       const result = await runAlertCycle(env, { dryRun: true });
       if (!result.ok) return jsonResponse({ error: result.error }, result.status || 502);
       return jsonResponse({
