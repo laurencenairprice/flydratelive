@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - worker.js
+      - free-board.js
       - alerts.js
       - wrangler.toml
   workflow_dispatch:

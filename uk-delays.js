@@ -65,16 +65,16 @@
   }
 
   function severityLabel(score) {
-    if (score >= 3.5) return "High disruption";
-    if (score >= 2) return "Moderate delays";
-    if (score >= 1) return "Some delays";
-    return "Mostly on time";
+    if (score >= 60) return "High chatter";
+    if (score >= 35) return "Rising noise";
+    if (score >= 15) return "Some mentions";
+    return "Quiet";
   }
 
   function severityClass(score) {
-    if (score >= 3.5) return "delay-severity-high";
-    if (score >= 2) return "delay-severity-mid";
-    if (score >= 1) return "delay-severity-low";
+    if (score >= 60) return "delay-severity-high";
+    if (score >= 35) return "delay-severity-mid";
+    if (score >= 15) return "delay-severity-low";
     return "delay-severity-ok";
   }
 
@@ -103,12 +103,12 @@
     const delayBars = $("delayHeatBars");
     if (!delayMount || !delayBars) return;
     delayMount.innerHTML = ukHeatmapSvg(points, {
-      title: "UK airport delay heat map",
+      title: "UK airport chatter heat map",
       mapId: "delay",
-      maxValue: 5,
+      maxValue: 100,
       getValue: (point) => point.value
-    }) + ukHeatLegend("High disruption", "delay");
-    delayBars.innerHTML = ukActivityBars(points, (point) => point.value, (value) => value.toFixed(1));
+    }) + ukHeatLegend("High chatter", "delay");
+    delayBars.innerHTML = ukActivityBars(points, (point) => point.value, (value) => `${Math.round(value)} / 100`);
   }
 
   function renderSocialHeatmaps(payload) {
@@ -119,11 +119,11 @@
     const airports = payload?.airports || [];
     const points = heatPointsFromAirports(airports, (airport) => airport.activityScore || 0);
     socialMount.innerHTML = ukHeatmapSvg(points, {
-      title: "UK airport complaint activity heat map",
+      title: "UK airport chatter ranking map",
       mapId: "social",
       maxValue: 100,
       getValue: (point) => point.value
-    }) + ukHeatLegend("High activity", "social");
+    }) + ukHeatLegend("High chatter", "social");
     socialBars.innerHTML = ukActivityBars(points, (point) => point.value, (value) => `${Math.round(value)} / 100`);
     if (status) {
       status.textContent = payload?.note || "Complaint activity refreshed.";
@@ -162,24 +162,25 @@
   }
 
   function renderSummary(airports) {
-    const disrupted = airports.filter((airport) => airport.score >= 2 || airport.cancelledTotal > 0);
+    const active = airports.filter((airport) => airport.score >= 15 || (airport.delayPosts || 0) > 0);
     const totalPosts = airports.reduce((sum, airport) => sum + (airport.delayPosts || 0), 0);
+    const totalIg = airports.reduce((sum, airport) => sum + (airport.instagramLinks?.length || 0), 0);
     $("delaySummary").innerHTML = `
       <div class="delay-stat">
         <p class="mono">Airports tracked</p>
         <p class="delay-stat-value">${airports.length}</p>
       </div>
       <div class="delay-stat">
-        <p class="mono">Showing disruption</p>
-        <p class="delay-stat-value">${disrupted.length}</p>
+        <p class="mono">With chatter</p>
+        <p class="delay-stat-value">${active.length}</p>
       </div>
       <div class="delay-stat">
-        <p class="mono">Cancellations (2h window)</p>
-        <p class="delay-stat-value">${airports.reduce((sum, airport) => sum + airport.cancelledTotal, 0)}</p>
-      </div>
-      <div class="delay-stat">
-        <p class="mono">Delay posts (sample)</p>
+        <p class="mono">Public posts</p>
         <p class="delay-stat-value">${totalPosts || "—"}</p>
+      </div>
+      <div class="delay-stat">
+        <p class="mono">IG links found</p>
+        <p class="delay-stat-value">${totalIg || "—"}</p>
       </div>
     `;
   }
@@ -206,18 +207,16 @@
         <span class="delay-pill">${escapeHtml(severityLabel(airport.score))}</span>
       </header>
       <dl class="delay-metrics">
-        <div><dt class="mono">Delay index</dt><dd>${airport.score ? airport.score.toFixed(1) : "—"}</dd></div>
-        <div><dt class="mono">Cancelled</dt><dd>${airport.cancelledTotal}</dd></div>
-        <div><dt class="mono">Dep median</dt><dd>${escapeHtml(formatDelay(airport.departures.medianDelay))}</dd></div>
-        <div><dt class="mono">Arr median</dt><dd>${escapeHtml(formatDelay(airport.arrivals.medianDelay))}</dd></div>
+        <div><dt class="mono">Chatter score</dt><dd>${airport.score ? Math.round(airport.score) : "—"}</dd></div>
         <div><dt class="mono">People posting</dt><dd title="${escapeHtml(delayPostsCaption(airport))}">${formatDelayPostsStat(airport)}</dd></div>
         <div><dt class="mono">News mentions</dt><dd>${airport.newsMentions == null ? "—" : airport.newsMentions}</dd></div>
+        <div><dt class="mono">IG links</dt><dd>${airport.instagramLinks?.length || 0}</dd></div>
       </dl>
       <p class="delay-post-caption">${escapeHtml(delayPostsCaption(airport))}</p>
       ${socialQuickLinksHtml(airport)}
       <div class="delay-card-actions">
-        <button type="button" class="btn delay-load-btn" data-action="flights" data-iata="${escapeHtml(airport.iata)}">Live delays &amp; cancellations</button>
-        <button type="button" class="btn delay-load-btn" data-action="social" data-iata="${escapeHtml(airport.iata)}">Travellers online</button>
+        <button type="button" class="btn delay-load-btn" data-action="detail" data-iata="${escapeHtml(airport.iata)}">Posts, news &amp; IG</button>
+        <a class="btn" href="index.html#top">Look up a flight</a>
       </div>
       <div class="delay-detail" id="detail-${escapeHtml(airport.iata)}" hidden></div>
     </article>`;
@@ -232,26 +231,33 @@
     updateViewModeLabels(payload);
   }
 
-  function renderFlightsDetail(airport, payload) {
-    const flights = payload.flights || [];
-    if (!flights.length) {
-      return `<p class="delay-detail-copy">No delayed or cancelled passenger flights in the last few hours for ${escapeHtml(airport.name)}.</p>`;
-    }
-    const rows = flights.map((flight) => `<tr>
-      <td class="mono">${escapeHtml(flight.number)}</td>
-      <td>${escapeHtml(flight.route)}</td>
-      <td>${escapeHtml(flight.direction)}</td>
-      <td>${escapeHtml(flight.status)}</td>
-      <td class="mono">${escapeHtml(formatDelay(flight.delay))}</td>
-    </tr>`).join("");
+  function renderChatterDetail(airport, payload) {
+    const news = (payload.news || []).map((item) => `<li><a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a></li>`).join("");
+    const posts = (payload.posts || []).map((post) => `<article class="delay-post">
+      <header><p class="mono">${escapeHtml(post.network)} · ${escapeHtml(post.author)}</p></header>
+      <p>${escapeHtml(post.text)}</p>
+      ${post.postUrl ? `<p class="delay-post-links"><a href="${escapeHtml(post.postUrl)}" target="_blank" rel="noopener noreferrer">Open post</a></p>` : ""}
+    </article>`).join("");
+    const igLinks = (payload.instagramLinks || []).map((link) =>
+      `<a class="delay-social-chip delay-social-chip-instagram" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">IG</span> ${escapeHtml(link.label.slice(0, 48))}</a>`
+    ).join("");
+    const links = payload.links || ukSocialLinks(airport);
+    const igSearch = ukSocialQuickLinks(airport).filter((link) => link.network === "instagram").map((link) =>
+      `<a class="delay-social-chip delay-social-chip-instagram" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">IG</span> ${escapeHtml(link.label)}</a>`
+    ).join("");
+
     return `
-      <p class="mono delay-detail-kicker">Disrupted flights</p>
-      <div class="delay-table-wrap">
-        <table class="delay-table">
-          <thead><tr><th>Flight</th><th>Route</th><th>Dir</th><th>Status</th><th>Delay</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
+      <p class="mono delay-detail-kicker">Free web signals · ${escapeHtml(airport.name)}</p>
+      <p class="delay-detail-copy">${escapeHtml(payload.note || "")}</p>
+      <p class="mono delay-detail-kicker">Instagram links found in public sources</p>
+      <div class="delay-social-chip-row">${igLinks || "<span class=\"delay-detail-copy\">None in today’s news/social sample — use live IG search below.</span>"}</div>
+      <p class="mono delay-detail-kicker">Search Instagram live</p>
+      <div class="delay-social-chip-row">${igSearch}</div>
+      <p class="mono delay-detail-kicker">News</p>
+      <ul class="stock-units">${news || "<li>No news items for this filter.</li>"}</ul>
+      <p class="mono delay-detail-kicker">Public posts</p>
+      <div class="delay-posts">${posts || "<p class=\"delay-detail-copy\">No matching posts in the sample.</p>"}</div>
+      <p class="delay-detail-copy">Need aircraft-level delay for a specific flight? Use the <a href="index.html#top">main calculator</a> (live flight API).</p>`;
   }
 
   function renderSocialDetail(airport, payload) {
@@ -343,10 +349,10 @@
 
     if (apiMissing) {
       setDemoBanner(
-        "Sample data — live API not connected",
-        `Showing example disruption for ${date} at ${hour}:00 UK. Redeploy the Cloudflare Worker (see repo) for real delays, flights, and posts on this date.`
+        "Sample data — free board API not live yet",
+        `Example chatter for ${date} at ${hour}:00 UK. Redeploy the Cloudflare Worker (GitHub Action: Deploy Cloudflare Worker, needs CLOUDFLARE_API_TOKEN) so /api/uk-board serves live news, social, and IG links. Flight lookup on the calculator is separate and already works.`
       );
-      setStatus(`Sample data for ${date} — live API unavailable (Worker needs redeploy).`, "error");
+      setStatus(`Sample data for ${date} — /api/uk-board not deployed on the Worker yet.`, "error");
     }
     updateViewModeLabels(merged);
   }
@@ -395,42 +401,39 @@
       status.textContent = "Loading complaint activity…";
       status.dataset.tone = "info";
     }
-    setStatus("Loading live UK airport disruption…");
+    setStatus("Loading free-web chatter…");
     try {
       const base = flightApiBase();
       const query = boardQueryString();
-      const [delayResponse, socialResponse] = await Promise.all([
-        fetch(`${base}/api/uk-delays${query}`),
-        fetch(`${base}/api/uk-delays/social-activity${query}`)
-      ]);
-      const delayPayload = await delayResponse.json();
-      if (!delayResponse.ok) throw new Error(delayPayload.error || "Could not load delays.");
+      const boardResponse = await fetch(`${base}/api/uk-board${query}`);
+      const boardPayload = await boardResponse.json();
+      if (!boardResponse.ok) throw new Error(boardPayload.error || "Could not load chatter board.");
 
-      let socialPayload = { airports: [] };
-      if (socialResponse.ok) {
-        socialPayload = await socialResponse.json();
-        renderSocialHeatmaps(socialPayload);
-        if (status) {
-          status.textContent = socialPayload.note || "Complaint activity refreshed.";
-          status.dataset.tone = "ok";
-        }
-      } else if (status) {
-        status.textContent = "Post counts unavailable until the Worker is redeployed.";
-        status.dataset.tone = "error";
-      }
-
-      if (!(delayPayload.airports || []).length) {
-        throw new Error("No airport delay data returned for that date.");
+      if (!(boardPayload.airports || []).length) {
+        throw new Error("No airport data returned for that date.");
       }
 
       hideDemoBanner();
-      const merged = mergeAirportSocial(delayPayload, socialPayload);
-      renderBoard(merged);
-      renderDelayHeatmaps(merged.airports);
+      renderBoard(boardPayload);
+      renderDelayHeatmaps(boardPayload.airports);
+      renderSocialHeatmaps({
+        airports: boardPayload.airports.map((airport) => ({
+          iata: airport.iata,
+          name: airport.name,
+          activityScore: airport.score,
+          lat: ukAirportByIata(airport.iata)?.lat,
+          lon: ukAirportByIata(airport.iata)?.lon
+        })),
+        note: boardPayload.note
+      });
+      if (status) {
+        status.textContent = boardPayload.note || "Free web chatter refreshed.";
+        status.dataset.tone = "ok";
+      }
       setStatus(
-        delayPayload.historical
-          ? `Historical view loaded for ${delayPayload.viewDate || $("delayDate")?.value}.`
-          : "Live disruption board refreshed.",
+        boardPayload.historical
+          ? `Historical chatter for ${boardPayload.viewDate || $("delayDate")?.value}.`
+          : "Chatter board refreshed from free public sources.",
         "ok"
       );
     } catch (error) {
@@ -476,7 +479,11 @@
   }
 
   async function loadAlertPreview() {
-    if (demoMode || viewingHistorical) {
+    if (demoMode) {
+      renderAlertPreview(ukDemoAlertsPayload());
+      return;
+    }
+    if (viewingHistorical) {
       if (viewingHistorical) {
         const status = $("alertStatus");
         const list = $("alertPreviewList");
@@ -508,15 +515,19 @@
     target.hidden = false;
     const airport = ukAirportByIata(iata);
     if (demoMode) {
-      const payload = ukDemoDetail(iata, action);
-      target.innerHTML = action === "social"
-        ? renderSocialDetail(airport, payload)
-        : renderFlightsDetail(airport, payload);
+      const payload = ukDemoDetail(iata, "social");
+      target.innerHTML = renderChatterDetail(airport, {
+        ...payload,
+        news: [],
+        instagramLinks: airport.iata === "LHR"
+          ? [{ url: "https://www.instagram.com/explore/tags/lhrdelay/", label: "Demo #lhrdelay" }]
+          : [],
+        note: "Demo sample posts — redeploy Worker for live news, Mastodon, Reddit, and IG links from public text."
+      });
       return;
     }
     target.innerHTML = `<p class="delay-detail-copy">Loading…</p>`;
     try {
-      const path = action === "social" ? "/api/uk-delays/social" : "/api/uk-delays/flights";
       const params = new URLSearchParams({ iata });
       const date = $("delayDate")?.value;
       const hour = $("delayHour")?.value || "14";
@@ -524,12 +535,10 @@
         params.set("date", date);
         params.set("hour", hour);
       }
-      const response = await fetch(`${flightApiBase()}${path}?${params.toString()}`);
+      const response = await fetch(`${flightApiBase()}/api/uk-board/detail?${params.toString()}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Request failed.");
-      target.innerHTML = action === "social"
-        ? renderSocialDetail(airport, payload)
-        : renderFlightsDetail(airport, payload);
+      target.innerHTML = renderChatterDetail(airport, payload);
     } catch (error) {
       target.innerHTML = `<p class="delay-detail-copy">${escapeHtml(error.message || "Could not load details.")}</p>`;
     }

@@ -10,6 +10,15 @@ const DEFAULT_THRESHOLDS = {
   chatterLeadMaxDelay: 2.4
 };
 
+const CHATTER_THRESHOLDS = {
+  highScore: 55,
+  worseningDelta: 22,
+  complaintBurst: 3,
+  systemicAirportCount: 4,
+  systemicMinScore: 38,
+  newsBurst: 4
+};
+
 function airportMap(airports) {
   return Object.fromEntries((airports || []).map((airport) => [airport.iata, airport]));
 }
@@ -104,6 +113,93 @@ export function evaluateEarlyWarnings(previous, current, socialPayload, threshol
         title: `${airport.name} (${airport.iata}) — traveller chatter rising early`,
         summary: `Public complaint activity up ${activityDelta} points while delay index is still ${airport.score.toFixed(1)}. Worth watching before media picks it up.`,
         metrics: { activity, activityDelta, score: airport.score },
+        detectedAt: nowIso
+      });
+    }
+  }
+
+  return alerts.sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+}
+
+/** Early warnings from the free-web chatter board (scores 0–100, no aviation API). */
+export function evaluateChatterWarnings(previous, current, thresholds = CHATTER_THRESHOLDS) {
+  const alerts = [];
+  const nowIso = current.updatedAt || new Date().toISOString();
+  const prevAirports = airportMap(previous?.airports);
+  const airports = current.airports || [];
+
+  const hot = airports.filter((airport) => (airport.score || 0) >= thresholds.systemicMinScore);
+  if (hot.length >= thresholds.systemicAirportCount) {
+    alerts.push({
+      id: "systemic_chatter",
+      type: "systemic_chatter",
+      severity: "high",
+      title: "Chatter rising at multiple UK airports",
+      summary: `${hot.length} airports show elevated public chatter (score ≥ ${thresholds.systemicMinScore}). Check news and social before outreach.`,
+      airports: hot.slice(0, 8).map((airport) => ({
+        iata: airport.iata,
+        name: airport.name,
+        score: airport.score
+      })),
+      detectedAt: nowIso
+    });
+  }
+
+  for (const airport of airports) {
+    const prev = prevAirports[airport.iata];
+    const score = airport.score || 0;
+    const scoreDelta = prev ? score - (prev.score || 0) : 0;
+    const complaints = airport.complaintPosts || 0;
+    const prevComplaints = prev?.complaintPosts || 0;
+    const news = airport.newsMentions || 0;
+    const prevNews = prev?.newsMentions || 0;
+
+    if (score >= thresholds.highScore) {
+      alerts.push({
+        id: `high_chatter_${airport.iata}`,
+        type: "high_chatter",
+        severity: score >= 75 ? "critical" : "high",
+        iata: airport.iata,
+        title: `${airport.name} (${airport.iata}) — high public chatter`,
+        summary: `Chatter score ${Math.round(score)}/100 · ${airport.delayPosts || 0} posts · ${news} news hits · ${airport.instagramLinks?.length || 0} IG links found.`,
+        metrics: { score, delayPosts: airport.delayPosts, newsMentions: news },
+        detectedAt: nowIso
+      });
+    }
+
+    if (prev && scoreDelta >= thresholds.worseningDelta) {
+      alerts.push({
+        id: `chatter_spike_${airport.iata}`,
+        type: "chatter_spike",
+        severity: scoreDelta >= 35 ? "critical" : "high",
+        iata: airport.iata,
+        title: `${airport.name} (${airport.iata}) — chatter spiking`,
+        summary: `Score up ${Math.round(scoreDelta)} points (${Math.round(prev.score || 0)} → ${Math.round(score)}).`,
+        metrics: { score, scoreDelta },
+        detectedAt: nowIso
+      });
+    }
+
+    if (prev && complaints - prevComplaints >= thresholds.complaintBurst) {
+      alerts.push({
+        id: `complaint_burst_${airport.iata}`,
+        type: "complaint_burst",
+        severity: "medium",
+        iata: airport.iata,
+        title: `${airport.name} (${airport.iata}) — more delay/cancel mentions`,
+        summary: `${complaints - prevComplaints} new complaint-style posts in the public sample.`,
+        detectedAt: nowIso
+      });
+    }
+
+    if (prev && news - prevNews >= thresholds.newsBurst) {
+      alerts.push({
+        id: `news_burst_${airport.iata}`,
+        type: "news_burst",
+        severity: "medium",
+        iata: airport.iata,
+        title: `${airport.name} (${airport.iata}) — news mentions jumped`,
+        summary: `${news - prevNews} additional news items in the Google News sample.`,
         detectedAt: nowIso
       });
     }
