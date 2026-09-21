@@ -94,8 +94,39 @@
     }
   }
 
+  function mergeAirportSocial(delaysPayload, socialPayload) {
+    const socialMap = Object.fromEntries((socialPayload?.airports || []).map((airport) => [airport.iata, airport]));
+    return {
+      ...delaysPayload,
+      airports: (delaysPayload?.airports || []).map((airport) => {
+        const social = socialMap[airport.iata] || {};
+        return {
+          ...airport,
+          delayPosts: typeof social.postCount === "number" ? social.postCount : null,
+          complaintPosts: typeof social.complaintPosts === "number" ? social.complaintPosts : null,
+          newsMentions: typeof social.newsCount === "number" ? social.newsCount : null,
+          activityScore: typeof social.activityScore === "number" ? social.activityScore : null
+        };
+      })
+    };
+  }
+
+  function formatDelayPostsStat(airport) {
+    if (airport.delayPosts == null) return "—";
+    return String(airport.delayPosts);
+  }
+
+  function delayPostsCaption(airport) {
+    if (airport.delayPosts == null) return "Public post sample not loaded";
+    const bits = [`${airport.delayPosts} public post${airport.delayPosts === 1 ? "" : "s"} about delays`];
+    if (airport.complaintPosts) bits.push(`${airport.complaintPosts} mention delays/cancellations`);
+    if (airport.newsMentions) bits.push(`${airport.newsMentions} news mentions`);
+    return bits.join(" · ");
+  }
+
   function renderSummary(airports) {
     const disrupted = airports.filter((airport) => airport.score >= 2 || airport.cancelledTotal > 0);
+    const totalPosts = airports.reduce((sum, airport) => sum + (airport.delayPosts || 0), 0);
     $("delaySummary").innerHTML = `
       <div class="delay-stat">
         <p class="mono">Airports tracked</p>
@@ -108,6 +139,10 @@
       <div class="delay-stat">
         <p class="mono">Cancellations (2h window)</p>
         <p class="delay-stat-value">${airports.reduce((sum, airport) => sum + airport.cancelledTotal, 0)}</p>
+      </div>
+      <div class="delay-stat">
+        <p class="mono">Delay posts (sample)</p>
+        <p class="delay-stat-value">${totalPosts || "—"}</p>
       </div>
     `;
   }
@@ -138,7 +173,10 @@
         <div><dt class="mono">Cancelled</dt><dd>${airport.cancelledTotal}</dd></div>
         <div><dt class="mono">Dep median</dt><dd>${escapeHtml(formatDelay(airport.departures.medianDelay))}</dd></div>
         <div><dt class="mono">Arr median</dt><dd>${escapeHtml(formatDelay(airport.arrivals.medianDelay))}</dd></div>
+        <div><dt class="mono">People posting</dt><dd title="${escapeHtml(delayPostsCaption(airport))}">${formatDelayPostsStat(airport)}</dd></div>
+        <div><dt class="mono">News mentions</dt><dd>${airport.newsMentions == null ? "—" : airport.newsMentions}</dd></div>
       </dl>
+      <p class="delay-post-caption">${escapeHtml(delayPostsCaption(airport))}</p>
       ${socialQuickLinksHtml(airport)}
       <div class="delay-card-actions">
         <button type="button" class="btn delay-load-btn" data-action="flights" data-iata="${escapeHtml(airport.iata)}">Live delays &amp; cancellations</button>
@@ -231,10 +269,11 @@
     const demoBtn = $("delayDemo");
     if (demoBtn) demoBtn.textContent = "Exit demo";
 
-    const delays = ukDemoDelaysPayload();
-    renderBoard(delays);
-    renderDelayHeatmaps(delays.airports);
-    renderSocialHeatmaps(ukDemoSocialPayload());
+    const social = ukDemoSocialPayload();
+    const merged = mergeAirportSocial(ukDemoDelaysPayload(), social);
+    renderBoard(merged);
+    renderDelayHeatmaps(merged.airports);
+    renderSocialHeatmaps(social);
     renderAlertPreview(ukDemoAlertsPayload());
     $("socialHeatStatus").textContent = "Demo complaint activity loaded.";
     $("socialHeatStatus").dataset.tone = "ok";
@@ -252,23 +291,50 @@
   }
 
   function refreshAllLive() {
-    loadBoard();
-    loadSocialHeatmap();
+    loadDashboard();
     loadAlertPreview();
   }
 
-  async function loadBoard() {
+  async function loadDashboard() {
     if (demoMode) return;
+    const status = $("socialHeatStatus");
+    if (status) {
+      status.textContent = "Loading complaint activity…";
+      status.dataset.tone = "info";
+    }
     setStatus("Loading live UK airport disruption…");
     try {
-      const response = await fetch(`${flightApiBase()}/api/uk-delays`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Could not load delays.");
-      renderBoard(payload);
-      renderDelayHeatmaps(payload.airports || []);
+      const base = flightApiBase();
+      const [delayResponse, socialResponse] = await Promise.all([
+        fetch(`${base}/api/uk-delays`),
+        fetch(`${base}/api/uk-delays/social-activity`)
+      ]);
+      const delayPayload = await delayResponse.json();
+      if (!delayResponse.ok) throw new Error(delayPayload.error || "Could not load delays.");
+
+      let socialPayload = { airports: [] };
+      if (socialResponse.ok) {
+        socialPayload = await socialResponse.json();
+        renderSocialHeatmaps(socialPayload);
+        if (status) {
+          status.textContent = socialPayload.note || "Complaint activity refreshed.";
+          status.dataset.tone = "ok";
+        }
+      } else if (status) {
+        status.textContent = "Post counts unavailable until the Worker is redeployed.";
+        status.dataset.tone = "error";
+      }
+
+      const merged = mergeAirportSocial(delayPayload, socialPayload);
+      renderBoard(merged);
+      renderDelayHeatmaps(merged.airports);
       setStatus("Live disruption board refreshed.", "ok");
     } catch (error) {
       setStatus(`${error.message || "Could not load delays."} Try Run demo scenario.`, "error");
+      if (status) {
+        status.textContent = error.message || "Complaint activity unavailable.";
+        status.dataset.tone = "error";
+      }
     }
   }
 
@@ -316,26 +382,6 @@
       const status = $("alertStatus");
       if (status) {
         status.textContent = error.message || "Alert preview unavailable until the Worker is redeployed.";
-        status.dataset.tone = "error";
-      }
-    }
-  }
-
-  async function loadSocialHeatmap() {
-    if (demoMode) return;
-    const status = $("socialHeatStatus");
-    if (status) {
-      status.textContent = "Loading complaint activity…";
-      status.dataset.tone = "info";
-    }
-    try {
-      const response = await fetch(`${flightApiBase()}/api/uk-delays/social-activity`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Could not load complaint activity.");
-      renderSocialHeatmaps(payload);
-    } catch (error) {
-      if (status) {
-        status.textContent = error.message || "Complaint activity unavailable until the Worker is redeployed.";
         status.dataset.tone = "error";
       }
     }
