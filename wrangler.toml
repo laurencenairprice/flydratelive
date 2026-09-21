@@ -20,6 +20,7 @@ ALERT_BOARD_URL = "https://laurencenairprice.github.io/flydratelive/uk-delays.ht
 ALERT_EMAIL_TO = "laurence@flydrate.co.uk,kay@flydrate.co.uk"
 ALERT_EMAIL_FROM = "Flydrate Alerts <alerts@flydrate.co.uk>"
 
+# GitHub Actions: add repository secret CLOUDFLARE_API_TOKEN (Workers Edit) to auto-deploy on push.
 # Set secrets (not in git):
 # npx wrangler secret put RAPIDAPI_KEY
 # npx wrangler secret put ALERT_CRON_SECRET

@@ -297,12 +297,70 @@
       ${posts ? `<div class="delay-posts">${posts}</div>` : `<p class="delay-detail-copy">No recent public posts found in our Mastodon sample. Use the platform searches above for X and Instagram.</p>`}`;
   }
 
+  function setDemoBanner(title, message) {
+    const banner = $("delayDemoBanner");
+    if (!banner) return;
+    banner.removeAttribute("hidden");
+    const titleNode = $("delayDemoBannerTitle");
+    const textNode = $("delayDemoBannerText");
+    if (titleNode) titleNode.textContent = title;
+    if (textNode) textNode.textContent = message;
+  }
+
+  function hideDemoBanner() {
+    $("delayDemoBanner")?.setAttribute("hidden", "");
+  }
+
+  function renderSampleDashboard(apiMissing) {
+    const date = $("delayDate")?.value || ukTodayInputValue();
+    const hour = $("delayHour")?.value || "14";
+    const historical = date !== ukTodayInputValue();
+    viewingHistorical = historical;
+
+    const social = ukDemoSocialPayload();
+    const merged = mergeAirportSocial(ukDemoDelaysPayload(), social);
+    merged.historical = historical;
+    merged.viewDate = date;
+    merged.updatedAt = new Date().toISOString();
+
+    renderBoard(merged);
+    renderDelayHeatmaps(merged.airports);
+    renderSocialHeatmaps(social);
+    $("socialHeatStatus").textContent = historical
+      ? `Sample post counts for ${date} (demo).`
+      : "Sample complaint activity (demo).";
+    $("socialHeatStatus").dataset.tone = "ok";
+
+    if (historical) {
+      renderAlertPreview({
+        checkedAt: new Date().toISOString(),
+        channelsConfigured: {},
+        alerts: []
+      });
+    } else {
+      renderAlertPreview(ukDemoAlertsPayload());
+    }
+
+    if (apiMissing) {
+      setDemoBanner(
+        "Sample data — live API not connected",
+        `Showing example disruption for ${date} at ${hour}:00 UK. Redeploy the Cloudflare Worker (see repo) for real delays, flights, and posts on this date.`
+      );
+      setStatus(`Sample data for ${date} — live API unavailable (Worker needs redeploy).`, "error");
+    }
+    updateViewModeLabels(merged);
+  }
+
   function applyDemoScenario() {
     demoMode = true;
     document.body.classList.add("delay-demo-active");
-    $("delayDemoBanner")?.removeAttribute("hidden");
     const demoBtn = $("delayDemo");
     if (demoBtn) demoBtn.textContent = "Exit demo";
+
+    setDemoBanner(
+      "Demo mode",
+      "Simulated London/Midlands disruption — sample heat maps, alerts, and outreach panels. No live API data."
+    );
 
     const social = ukDemoSocialPayload();
     const merged = mergeAirportSocial(ukDemoDelaysPayload(), social);
@@ -319,15 +377,15 @@
   function exitDemoScenario() {
     demoMode = false;
     document.body.classList.remove("delay-demo-active");
-    $("delayDemoBanner")?.setAttribute("hidden", "");
+    hideDemoBanner();
     const demoBtn = $("delayDemo");
     if (demoBtn) demoBtn.textContent = "Run demo scenario";
     refreshAllLive();
   }
 
-  function refreshAllLive() {
-    loadDashboard();
-    loadAlertPreview();
+  async function refreshAllLive() {
+    await loadDashboard();
+    await loadAlertPreview();
   }
 
   async function loadDashboard() {
@@ -361,14 +419,24 @@
         status.dataset.tone = "error";
       }
 
+      if (!(delayPayload.airports || []).length) {
+        throw new Error("No airport delay data returned for that date.");
+      }
+
+      hideDemoBanner();
       const merged = mergeAirportSocial(delayPayload, socialPayload);
       renderBoard(merged);
       renderDelayHeatmaps(merged.airports);
-      setStatus("Live disruption board refreshed.", "ok");
+      setStatus(
+        delayPayload.historical
+          ? `Historical view loaded for ${delayPayload.viewDate || $("delayDate")?.value}.`
+          : "Live disruption board refreshed.",
+        "ok"
+      );
     } catch (error) {
-      setStatus(`${error.message || "Could not load delays."} Try Run demo scenario.`, "error");
+      renderSampleDashboard(true);
       if (status) {
-        status.textContent = error.message || "Complaint activity unavailable.";
+        status.textContent = "Using sample data until the Worker API is redeployed.";
         status.dataset.tone = "error";
       }
     }
