@@ -1062,6 +1062,12 @@ h2 {
   height: auto;
   display: block;
   margin-top: 8px;
+  border: 1px solid var(--line);
+  background: #b9d6de;
+}
+
+.uk-heat-layer {
+  mix-blend-mode: multiply;
 }
 
 .uk-heat-label {

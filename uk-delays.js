@@ -67,6 +67,7 @@
     if (!delayMount || !delayBars) return;
     delayMount.innerHTML = ukHeatmapSvg(points, {
       title: "UK airport delay heat map",
+      mapId: "delay",
       maxValue: 5,
       getValue: (point) => point.value
     }) + ukHeatLegend("High disruption", "delay");
@@ -82,6 +83,7 @@
     const points = heatPointsFromAirports(airports, (airport) => airport.activityScore || 0);
     socialMount.innerHTML = ukHeatmapSvg(points, {
       title: "UK airport complaint activity heat map",
+      mapId: "social",
       maxValue: 100,
       getValue: (point) => point.value
     }) + ukHeatLegend("High activity", "social");
