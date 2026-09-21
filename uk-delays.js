@@ -216,6 +216,54 @@
     }
   }
 
+  function renderAlertPreview(payload) {
+    const status = $("alertStatus");
+    const list = $("alertPreviewList");
+    if (!status || !list) return;
+
+    const channels = payload.channelsConfigured || {};
+    const channelBits = [
+      channels.email ? "Email" : null,
+      channels.slack ? "Slack" : null,
+      channels.webhook ? "Webhook" : null
+    ].filter(Boolean);
+
+    status.textContent = channelBits.length
+      ? `Monitoring active. Notifications: ${channelBits.join(", ")}${channels.kv ? "" : " · KV not bound — trend alerts need ALERT_STATE"}`
+      : "No notification channels configured yet — alerts will only show on this page until Resend/Slack secrets are added.";
+    status.dataset.tone = channelBits.length ? "ok" : "error";
+
+    const alerts = payload.alerts || [];
+    if (!alerts.length) {
+      list.innerHTML = `<p class="delay-detail-copy">No early-warning signals right now. Last check ${payload.checkedAt ? new Date(payload.checkedAt).toLocaleString("en-GB") : "—"}.</p>`;
+      return;
+    }
+
+    list.innerHTML = alerts.map((alert) => `<article class="delay-alert-card delay-alert-${alert.severity}">
+      <header>
+        <span class="mono">${escapeHtml(alert.severity)}</span>
+        <span class="mono">${alert.detectedAt ? escapeHtml(new Date(alert.detectedAt).toLocaleString("en-GB")) : ""}</span>
+      </header>
+      <h3>${escapeHtml(alert.title)}</h3>
+      <p>${escapeHtml(alert.summary)}</p>
+    </article>`).join("");
+  }
+
+  async function loadAlertPreview() {
+    try {
+      const response = await fetch(`${flightApiBase()}/api/uk-delays/alerts/preview`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Alert preview unavailable.");
+      renderAlertPreview(payload);
+    } catch (error) {
+      const status = $("alertStatus");
+      if (status) {
+        status.textContent = error.message || "Alert preview unavailable until the Worker is redeployed.";
+        status.dataset.tone = "error";
+      }
+    }
+  }
+
   async function loadSocialHeatmap() {
     const status = $("socialHeatStatus");
     if (status) {
@@ -275,12 +323,15 @@
     $("delayRefresh")?.addEventListener("click", () => {
       loadBoard();
       loadSocialHeatmap();
+      loadAlertPreview();
     });
   }
 
   bindBoard();
   loadBoard();
   loadSocialHeatmap();
+  loadAlertPreview();
   setInterval(loadBoard, REFRESH_MS);
   setInterval(loadSocialHeatmap, REFRESH_MS);
+  setInterval(loadAlertPreview, REFRESH_MS);
 })();

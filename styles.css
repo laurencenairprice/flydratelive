@@ -1107,6 +1107,47 @@ h2 {
   text-align: right;
 }
 
+.delay-alerts-section {
+  padding-top: 0;
+}
+
+.delay-alert-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.delay-alert-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+}
+
+.delay-alert-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.delay-alert-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.delay-alert-critical {
+  border-color: #c0392b;
+}
+
+.delay-alert-high {
+  border-color: #b86e00;
+}
+
+.delay-alert-medium {
+  border-color: var(--teal-deep);
+}
+
 .delay-board-section {
   padding-top: 0;
 }

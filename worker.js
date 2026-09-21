@@ -1,3 +1,11 @@
+import {
+  deliverAlerts,
+  evaluateEarlyWarnings,
+  filterCooldown,
+  loadAlertState,
+  saveAlertState
+} from "./alerts.js";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -360,6 +368,83 @@ async function fetchSocialSignals(iata) {
   };
 }
 
+function alertBoardUrl(env) {
+  return env.ALERT_BOARD_URL || "https://laurencenairprice.github.io/flydratelive/uk-delays.html";
+}
+
+function alertChannelsConfigured(env) {
+  return {
+    email: Boolean(env.RESEND_API_KEY && env.ALERT_EMAIL_TO),
+    slack: Boolean(env.SLACK_WEBHOOK_URL),
+    webhook: Boolean(env.ALERT_WEBHOOK_URL),
+    kv: Boolean(env.ALERT_STATE)
+  };
+}
+
+function isAuthorizedAlertRun(url, env) {
+  const secret = env.ALERT_CRON_SECRET;
+  if (!secret) return false;
+  return url.searchParams.get("key") === secret;
+}
+
+async function runAlertCycle(env, options = {}) {
+  const dryRun = Boolean(options.dryRun);
+  const delays = await fetchUkDelays(env);
+  if (delays.error) {
+    return { ok: false, error: delays.error, status: delays.status || 502 };
+  }
+
+  const state = (await loadAlertState(env.ALERT_STATE)) || {};
+  const runCount = (state.runCount || 0) + 1;
+  let socialPayload = state.social || { airports: [] };
+
+  if (!dryRun && (runCount % 4 === 0 || options.refreshSocial)) {
+    socialPayload = await fetchSocialActivityHeatmap();
+    state.social = socialPayload;
+  }
+
+  const previousSnapshot = state.snapshot || null;
+  const allAlerts = evaluateEarlyWarnings(previousSnapshot, delays, socialPayload);
+  const { alerts: alertsToSend, nextSentAt } = filterCooldown(allAlerts, state.lastSentAt || {});
+
+  let delivery = { delivered: false, channels: [], dryRun };
+  if (alertsToSend.length && !dryRun) {
+    delivery = await deliverAlerts(env, alertsToSend, alertBoardUrl(env), false);
+    if (delivery.delivered) {
+      state.lastSentAt = nextSentAt;
+    }
+  } else if (alertsToSend.length && dryRun) {
+    delivery = await deliverAlerts(env, alertsToSend, alertBoardUrl(env), true);
+  }
+
+  if (!dryRun) {
+    state.runCount = runCount;
+    state.snapshot = {
+      updatedAt: delays.updatedAt,
+      airports: delays.airports,
+      social: {
+        updatedAt: socialPayload.updatedAt || delays.updatedAt,
+        airports: socialPayload.airports || []
+      }
+    };
+    state.lastCheckAt = new Date().toISOString();
+    state.lastAlertCount = allAlerts.length;
+    state.lastSentCount = delivery.delivered ? alertsToSend.length : 0;
+    state.lastDelivery = delivery.channels || [];
+    await saveAlertState(env.ALERT_STATE, state);
+  }
+
+  return {
+    ok: true,
+    checkedAt: dryRun ? new Date().toISOString() : state.lastCheckAt,
+    allAlerts,
+    alertsToSend,
+    delivery,
+    channelsConfigured: alertChannelsConfigured(env),
+    snapshotSaved: Boolean(env.ALERT_STATE) && !dryRun
+  };
+}
+
 async function handleFlightLookup(url, env) {
   if (!env.RAPIDAPI_KEY) {
     return jsonResponse({ error: "Flight lookup is not configured." }, 500);
@@ -425,6 +510,45 @@ export default {
       return jsonResponse(payload, 200, 300);
     }
 
+    if (url.pathname === "/api/uk-delays/alerts/preview") {
+      const result = await runAlertCycle(env, { dryRun: true });
+      if (!result.ok) return jsonResponse({ error: result.error }, result.status || 502);
+      return jsonResponse({
+        checkedAt: result.checkedAt,
+        channelsConfigured: result.channelsConfigured,
+        snapshotSaved: result.snapshotSaved,
+        alerts: result.allAlerts,
+        wouldNotify: result.alertsToSend,
+        deliveryPreview: result.delivery
+      }, 200, 30);
+    }
+
+    if (url.pathname === "/api/uk-delays/alerts/status") {
+      const state = (await loadAlertState(env.ALERT_STATE)) || {};
+      return jsonResponse({
+        channelsConfigured: alertChannelsConfigured(env),
+        snapshotSaved: Boolean(env.ALERT_STATE),
+        lastCheckAt: state.lastCheckAt || null,
+        lastAlertCount: state.lastAlertCount || 0,
+        lastSentCount: state.lastSentCount || 0,
+        lastDelivery: state.lastDelivery || [],
+        cron: "Every 15 minutes (UTC) when Worker cron is deployed"
+      }, 200, 30);
+    }
+
+    if (url.pathname === "/api/uk-delays/alerts/run") {
+      if (!isAuthorizedAlertRun(url, env)) {
+        return jsonResponse({ error: "Unauthorized." }, 401);
+      }
+      const result = await runAlertCycle(env, { dryRun: false, refreshSocial: true });
+      if (!result.ok) return jsonResponse({ error: result.error }, result.status || 502);
+      return jsonResponse(result, 200);
+    }
+
     return jsonResponse({ error: "Not found." }, 404);
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runAlertCycle(env, { dryRun: false }));
   }
 };

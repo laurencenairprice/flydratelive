@@ -4,5 +4,25 @@ compatibility_date = "2026-08-15"
 workers_dev = true
 account_id = "6a7db9d9cd1c4fbf89ceca52984a7ac3"
 
+# Early-warning cron (UTC). Requires redeploy after edits.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# Create KV once: `npx wrangler kv namespace create ALERT_STATE`
+# Then paste the id below and redeploy.
+# [[kv_namespaces]]
+# binding = "ALERT_STATE"
+# id = "YOUR_KV_NAMESPACE_ID"
+
 [vars]
 RAPIDAPI_HOST = "aerodatabox.p.rapidapi.com"
+ALERT_BOARD_URL = "https://laurencenairprice.github.io/flydratelive/uk-delays.html"
+
+# Set secrets (not in git):
+# npx wrangler secret put RAPIDAPI_KEY
+# npx wrangler secret put ALERT_CRON_SECRET
+# npx wrangler secret put RESEND_API_KEY
+# npx wrangler secret put ALERT_EMAIL_TO
+# npx wrangler secret put ALERT_EMAIL_FROM
+# npx wrangler secret put SLACK_WEBHOOK_URL
+# npx wrangler secret put ALERT_WEBHOOK_URL

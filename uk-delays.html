@@ -70,6 +70,19 @@
       </div>
     </section>
 
+    <section class="section delay-alerts-section">
+      <div class="wrap">
+        <p class="mono slashes section-kicker">Early warning</p>
+        <h2>Problem signals before the media</h2>
+        <p class="lede">The Worker checks UK airports every 15 minutes. It compares the latest snapshot with the previous one and can email or Slack you when delays spike, cancellations jump, or traveller chatter rises unusually early.</p>
+        <div class="delay-alert-status" id="alertStatusPanel">
+          <p class="calc-status" id="alertStatus">Loading alert monitor…</p>
+        </div>
+        <div class="delay-alert-list" id="alertPreviewList"></div>
+        <p class="calc-disclaimer">Setup: create Cloudflare KV (<code>ALERT_STATE</code>), redeploy the Worker, then add secrets for <code>RESEND_API_KEY</code> + <code>ALERT_EMAIL_TO</code> and/or <code>SLACK_WEBHOOK_URL</code>. Manual test: <code>/api/uk-delays/alerts/run?key=YOUR_SECRET</code>.</p>
+      </div>
+    </section>
+
     <section class="section delay-board-section">
       <div class="wrap">
         <div class="delay-board" id="delayBoard"></div>
@@ -97,6 +110,6 @@
   </footer>
   <script src="uk-airports.js?v=2"></script>
   <script src="uk-heatmap.js?v=1"></script>
-  <script src="uk-delays.js?v=2"></script>
+  <script src="uk-delays.js?v=3"></script>
 </body>
 </html>
