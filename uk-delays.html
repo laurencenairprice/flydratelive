@@ -79,7 +79,7 @@
           <p class="calc-status" id="alertStatus">Loading alert monitor…</p>
         </div>
         <div class="delay-alert-list" id="alertPreviewList"></div>
-        <p class="calc-disclaimer">Setup: create Cloudflare KV (<code>ALERT_STATE</code>), redeploy the Worker, then add secrets for <code>RESEND_API_KEY</code> + <code>ALERT_EMAIL_TO</code> and/or <code>SLACK_WEBHOOK_URL</code>. Manual test: <code>/api/uk-delays/alerts/run?key=YOUR_SECRET</code>.</p>
+        <p class="calc-disclaimer">Email alerts go to <strong>laurence@flydrate.co.uk</strong> and <strong>kay@flydrate.co.uk</strong> once Resend is connected. Setup: create Cloudflare KV (<code>ALERT_STATE</code>), set <code>RESEND_API_KEY</code>, redeploy the Worker. Manual test: <code>/api/uk-delays/alerts/run?key=YOUR_SECRET</code>.</p>
       </div>
     </section>
 

@@ -17,12 +17,12 @@ crons = ["*/15 * * * *"]
 [vars]
 RAPIDAPI_HOST = "aerodatabox.p.rapidapi.com"
 ALERT_BOARD_URL = "https://laurencenairprice.github.io/flydratelive/uk-delays.html"
+ALERT_EMAIL_TO = "laurence@flydrate.co.uk,kay@flydrate.co.uk"
+ALERT_EMAIL_FROM = "Flydrate Alerts <alerts@flydrate.co.uk>"
 
 # Set secrets (not in git):
 # npx wrangler secret put RAPIDAPI_KEY
 # npx wrangler secret put ALERT_CRON_SECRET
 # npx wrangler secret put RESEND_API_KEY
-# npx wrangler secret put ALERT_EMAIL_TO
-# npx wrangler secret put ALERT_EMAIL_FROM
 # npx wrangler secret put SLACK_WEBHOOK_URL
 # npx wrangler secret put ALERT_WEBHOOK_URL
