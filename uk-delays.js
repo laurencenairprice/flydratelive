@@ -1,5 +1,7 @@
 (function () {
   const REFRESH_MS = 5 * 60 * 1000;
+  let demoMode = false;
+  let refreshTimer = null;
 
   function $(id) {
     return document.getElementById(id);
@@ -202,7 +204,41 @@
       ${posts ? `<div class="delay-posts">${posts}</div>` : `<p class="delay-detail-copy">No recent public posts found in our Mastodon sample. Use the platform searches above for X and Instagram.</p>`}`;
   }
 
+  function applyDemoScenario() {
+    demoMode = true;
+    document.body.classList.add("delay-demo-active");
+    $("delayDemoBanner")?.removeAttribute("hidden");
+    const demoBtn = $("delayDemo");
+    if (demoBtn) demoBtn.textContent = "Exit demo";
+
+    const delays = ukDemoDelaysPayload();
+    renderBoard(delays);
+    renderDelayHeatmaps(delays.airports);
+    renderSocialHeatmaps(ukDemoSocialPayload());
+    renderAlertPreview(ukDemoAlertsPayload());
+    $("socialHeatStatus").textContent = "Demo complaint activity loaded.";
+    $("socialHeatStatus").dataset.tone = "ok";
+    setStatus("Demo scenario active — Heathrow/Gatwick/Manchester under stress.", "ok");
+    $("delayUpdated").textContent = "Demo data · not live";
+  }
+
+  function exitDemoScenario() {
+    demoMode = false;
+    document.body.classList.remove("delay-demo-active");
+    $("delayDemoBanner")?.setAttribute("hidden", "");
+    const demoBtn = $("delayDemo");
+    if (demoBtn) demoBtn.textContent = "Run demo scenario";
+    refreshAllLive();
+  }
+
+  function refreshAllLive() {
+    loadBoard();
+    loadSocialHeatmap();
+    loadAlertPreview();
+  }
+
   async function loadBoard() {
+    if (demoMode) return;
     setStatus("Loading live UK airport disruption…");
     try {
       const response = await fetch(`${flightApiBase()}/api/uk-delays`);
@@ -212,7 +248,7 @@
       renderDelayHeatmaps(payload.airports || []);
       setStatus("Live disruption board refreshed.", "ok");
     } catch (error) {
-      setStatus(error.message || "Could not load delays.", "error");
+      setStatus(`${error.message || "Could not load delays."} Try Run demo scenario.`, "error");
     }
   }
 
@@ -250,6 +286,7 @@
   }
 
   async function loadAlertPreview() {
+    if (demoMode) return;
     try {
       const response = await fetch(`${flightApiBase()}/api/uk-delays/alerts/preview`);
       const payload = await response.json();
@@ -265,6 +302,7 @@
   }
 
   async function loadSocialHeatmap() {
+    if (demoMode) return;
     const status = $("socialHeatStatus");
     if (status) {
       status.textContent = "Loading complaint activity…";
@@ -287,8 +325,15 @@
     const target = $(`detail-${iata}`);
     if (!target) return;
     target.hidden = false;
-    target.innerHTML = `<p class="delay-detail-copy">Loading…</p>`;
     const airport = ukAirportByIata(iata);
+    if (demoMode) {
+      const payload = ukDemoDetail(iata, action);
+      target.innerHTML = action === "social"
+        ? renderSocialDetail(airport, payload)
+        : renderFlightsDetail(airport, payload);
+      return;
+    }
+    target.innerHTML = `<p class="delay-detail-copy">Loading…</p>`;
     try {
       const path = action === "social" ? "/api/uk-delays/social" : "/api/uk-delays/flights";
       const response = await fetch(`${flightApiBase()}${path}?iata=${encodeURIComponent(iata)}`);
@@ -321,17 +366,28 @@
     });
 
     $("delayRefresh")?.addEventListener("click", () => {
-      loadBoard();
-      loadSocialHeatmap();
-      loadAlertPreview();
+      if (demoMode) exitDemoScenario();
+      else refreshAllLive();
+    });
+
+    $("delayDemo")?.addEventListener("click", () => {
+      if (demoMode) exitDemoScenario();
+      else applyDemoScenario();
     });
   }
 
+  function startRefreshTimer() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+      if (!demoMode) refreshAllLive();
+    }, REFRESH_MS);
+  }
+
   bindBoard();
-  loadBoard();
-  loadSocialHeatmap();
-  loadAlertPreview();
-  setInterval(loadBoard, REFRESH_MS);
-  setInterval(loadSocialHeatmap, REFRESH_MS);
-  setInterval(loadAlertPreview, REFRESH_MS);
+  refreshAllLive();
+  startRefreshTimer();
+
+  if (new URLSearchParams(window.location.search).get("demo") === "1") {
+    applyDemoScenario();
+  }
 })();

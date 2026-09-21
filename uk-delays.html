@@ -34,10 +34,15 @@
         <p class="mono slashes section-kicker">Internal · outreach</p>
         <h1>UK airport disruption board</h1>
         <p class="lede">Live delay and cancellation signals across UK airports, plus shortcuts to find travellers posting about long waits — so you can offer a Flydrate where it helps.</p>
+        <div class="delay-demo-banner" id="delayDemoBanner" hidden>
+          <p class="mono">Demo mode</p>
+          <p>Simulated London/Midlands disruption — sample heat maps, alerts, and outreach panels. No live API data.</p>
+        </div>
         <div class="delay-toolbar">
           <p class="calc-status" id="delayStatus">Loading…</p>
           <p class="mono" id="delayUpdated"></p>
-          <button type="button" class="btn btn-solid" id="delayRefresh">Refresh now</button>
+          <button type="button" class="btn" id="delayDemo">Run demo scenario</button>
+          <button type="button" class="btn btn-solid" id="delayRefresh">Refresh live data</button>
         </div>
         <div class="delay-summary" id="delaySummary"></div>
         <p class="calc-disclaimer">Flight data from AeroDataBox (roughly the last 2 hours). Complaint activity is a proxy from public Mastodon posts and news mentions — not X/Instagram volume. Always be respectful — only offer help, never spam.</p>
@@ -110,6 +115,7 @@
   </footer>
   <script src="uk-airports.js?v=2"></script>
   <script src="uk-heatmap.js?v=1"></script>
-  <script src="uk-delays.js?v=3"></script>
+  <script src="uk-delays-demo.js?v=1"></script>
+  <script src="uk-delays.js?v=4"></script>
 </body>
 </html>

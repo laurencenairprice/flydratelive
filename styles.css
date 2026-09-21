@@ -989,6 +989,26 @@ h2 {
   padding-top: 56px;
 }
 
+.delay-demo-banner {
+  background: #fff4df;
+  border: 1px solid #d6a544;
+  padding: 12px 14px;
+  margin: 16px 0 0;
+}
+
+.delay-demo-banner p {
+  margin: 0;
+}
+
+.delay-demo-banner p.mono {
+  margin-bottom: 6px;
+  color: #8a5a00;
+}
+
+.delay-demo-active .delay-toolbar .btn-solid {
+  background: var(--ink);
+}
+
 .delay-toolbar {
   display: flex;
   flex-wrap: wrap;
