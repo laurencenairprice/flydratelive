@@ -1,10 +1,12 @@
 import {
   deliverAlerts,
+  evaluateChatterWarnings,
   evaluateEarlyWarnings,
   filterCooldown,
   loadAlertState,
   saveAlertState
 } from "./alerts.js";
+import { buildFreeAirportDetail, buildFreeUkBoard } from "./free-board.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -518,22 +520,36 @@ function isAuthorizedAlertRun(url, env) {
 
 async function runAlertCycle(env, options = {}) {
   const dryRun = Boolean(options.dryRun);
-  const delays = await fetchUkDelays(env);
-  if (delays.error) {
-    return { ok: false, error: delays.error, status: delays.status || 502 };
+  const useFreeBoard = !env.RAPIDAPI_KEY || options.freeBoardOnly;
+
+  let delays;
+  let socialPayload = { airports: [] };
+  if (useFreeBoard) {
+    const boardDate = { date: ukTodayString(), historical: false };
+    delays = await buildFreeUkBoard(UK_AIRPORTS, boardDate);
+    delays.mode = "free-chatter";
+  } else {
+    delays = await fetchUkDelays(env);
+    if (delays.error) {
+      return { ok: false, error: delays.error, status: delays.status || 502 };
+    }
   }
 
   const state = (await loadAlertState(env.ALERT_STATE)) || {};
   const runCount = (state.runCount || 0) + 1;
-  let socialPayload = state.social || { airports: [] };
 
-  if (!dryRun && (runCount % 4 === 0 || options.refreshSocial)) {
-    socialPayload = await fetchSocialActivityHeatmap();
-    state.social = socialPayload;
+  if (!useFreeBoard) {
+    socialPayload = state.social || { airports: [] };
+    if (!dryRun && (runCount % 4 === 0 || options.refreshSocial)) {
+      socialPayload = await fetchSocialActivityHeatmap();
+      state.social = socialPayload;
+    }
   }
 
   const previousSnapshot = state.snapshot || null;
-  const allAlerts = evaluateEarlyWarnings(previousSnapshot, delays, socialPayload);
+  const allAlerts = useFreeBoard
+    ? evaluateChatterWarnings(previousSnapshot, delays)
+    : evaluateEarlyWarnings(previousSnapshot, delays, socialPayload);
   const { alerts: alertsToSend, nextSentAt } = filterCooldown(allAlerts, state.lastSentAt || {});
 
   let delivery = { delivered: false, channels: [], dryRun };
@@ -616,6 +632,23 @@ export default {
       return handleFlightLookup(url, env);
     }
 
+    if (url.pathname === "/api/uk-board") {
+      const boardDate = parseBoardDate(url);
+      if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
+      const payload = await buildFreeUkBoard(UK_AIRPORTS, boardDate);
+      return jsonResponse(payload, 200, 120);
+    }
+
+    if (url.pathname === "/api/uk-board/detail") {
+      const boardDate = parseBoardDate(url);
+      if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
+      const airport = UK_BY_IATA[String(url.searchParams.get("iata") || "").toUpperCase()];
+      if (!airport) return jsonResponse({ error: "Unknown UK airport." }, 400);
+      const payload = await buildFreeAirportDetail(airport, boardDate);
+      payload.links = buildSocialLinks(airport);
+      return jsonResponse(payload, 200, 90);
+    }
+
     if (url.pathname === "/api/uk-delays") {
       const boardDate = parseBoardDate(url);
       if (boardDate.error) return jsonResponse({ error: boardDate.error }, 400);
@@ -661,7 +694,10 @@ export default {
           note: "Early-warning alerts only run for live data. Switch the date to today for alert preview."
         }, 200, 30);
       }
-      const result = await runAlertCycle(env, { dryRun: true });
+      const result = await runAlertCycle(env, {
+        dryRun: true,
+        freeBoardOnly: !env.RAPIDAPI_KEY
+      });
       if (!result.ok) return jsonResponse({ error: result.error }, result.status || 502);
       return jsonResponse({
         checkedAt: result.checkedAt,
@@ -669,7 +705,11 @@ export default {
         snapshotSaved: result.snapshotSaved,
         alerts: result.allAlerts,
         wouldNotify: result.alertsToSend,
-        deliveryPreview: result.delivery
+        deliveryPreview: result.delivery,
+        mode: env.RAPIDAPI_KEY ? "aviation-plus-chatter" : "free-chatter-only",
+        note: env.RAPIDAPI_KEY
+          ? "Alerts combine AeroDataBox delay snapshots with public chatter."
+          : "Alerts use free web chatter only (news, Mastodon, Reddit, IG links found in text). Flight lookup still uses AeroDataBox when configured."
       }, 200, 30);
     }
 

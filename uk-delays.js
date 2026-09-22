@@ -404,7 +404,14 @@
         fetch(`${base}/api/uk-delays/social-activity${query}`)
       ]);
       const delayPayload = await delayResponse.json();
-      if (!delayResponse.ok) throw new Error(delayPayload.error || "Could not load delays.");
+      if (!delayResponse.ok) {
+        const missingRoute = delayResponse.status === 404
+          || String(delayPayload.error || "").toLowerCase().includes("not found");
+        if (missingRoute) {
+          throw new Error("WORKER_STALE");
+        }
+        throw new Error(delayPayload.error || "Could not load delays.");
+      }
 
       let socialPayload = { airports: [] };
       if (socialResponse.ok) {
@@ -438,6 +445,13 @@
       if (status) {
         status.textContent = "Using sample data until the Worker API is redeployed.";
         status.dataset.tone = "error";
+      }
+      if (error.message === "WORKER_STALE") {
+        setDemoBanner(
+          "Live delays need a Worker redeploy",
+          "The board calls /api/uk-delays (same AeroDataBox source as the calculator). Production Worker still only serves /api/flight. Merge latest main and run the GitHub Action Deploy Cloudflare Worker (CLOUDFLARE_API_TOKEN), or npm run deploy:worker locally."
+        );
+        setStatus("Sample data — redeploy Worker for live UK delay snapshots.", "error");
       }
     }
   }
