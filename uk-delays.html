@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FLYDRATE — UK airport delay board</title>
-  <meta name="description" content="UK airport disruption chatter from free public sources — news, social posts, and Instagram links — plus flight lookup on the main calculator.">
+  <meta name="description" content="Live UK airport delays, cancellations, and links to travellers posting about disruption — for Flydrate outreach.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,7 @@
       <div class="wrap">
         <p class="mono slashes section-kicker">Internal · outreach</p>
         <h1>UK airport disruption board</h1>
-        <p class="lede">Free-web chatter across UK airports — news, Mastodon, Reddit, and any Instagram links found in those sources (no paid social API). Use the <a href="index.html#top">calculator</a> for live flight delay on a specific service.</p>
+        <p class="lede">Live delay and cancellation signals across UK airports, plus shortcuts to find travellers posting about long waits — so you can offer a Flydrate where it helps.</p>
         <div class="delay-demo-banner" id="delayDemoBanner" hidden>
           <p class="mono" id="delayDemoBannerTitle">Demo mode</p>
           <p id="delayDemoBannerText">Simulated London/Midlands disruption — sample heat maps, alerts, and outreach panels. No live API data.</p>
@@ -62,7 +62,7 @@
           <button type="button" class="btn btn-solid" id="delayRefresh">Refresh live data</button>
         </div>
         <div class="delay-summary" id="delaySummary"></div>
-        <p class="calc-disclaimer">Pick a UK date to filter news and posts by that day. Today refreshes every five minutes. Instagram has no free firehose — we surface links found in public text plus one-click IG search chips per airport.</p>
+        <p class="calc-disclaimer">Pick a UK date to replay that day: delay snapshot at the chosen hour, disrupted flights across the day, and public posts/news tagged to that date. Today uses live data. Social history is limited to what public feeds still expose.</p>
       </div>
     </section>
 
@@ -71,18 +71,18 @@
         <div class="heatmaps-grid">
           <article class="heatmap-panel">
             <header>
-              <p class="mono slashes">Signal map</p>
-              <h2>Chatter heat map</h2>
-              <p class="delay-detail-copy">Where public noise is loudest — brighter nodes mean higher chatter score from news and social samples.</p>
+              <p class="mono slashes">Live operations</p>
+              <h2>Delay heat map</h2>
+              <p class="delay-detail-copy">Where disruption is worst right now — brighter, larger nodes mean higher delay index and cancellations in the last ~2 hours.</p>
             </header>
             <div id="delayHeatmapMount"></div>
             <div id="delayHeatBars"></div>
           </article>
           <article class="heatmap-panel">
             <header>
-              <p class="mono slashes">Same signal</p>
-              <h2>Airport ranking</h2>
-              <p class="delay-detail-copy">Bar view of the same chatter scores — useful for spotting who to open in Instagram search first.</p>
+              <p class="mono slashes">Public frustration</p>
+              <h2>Complaint activity</h2>
+              <p class="delay-detail-copy">Estimated chatter from public posts and news — a stand-in until paid social listening is wired up.</p>
             </header>
             <p class="calc-status" id="socialHeatStatus">Loading complaint activity…</p>
             <div id="socialHeatmapMount"></div>
@@ -96,7 +96,7 @@
       <div class="wrap">
         <p class="mono slashes section-kicker">Early warning</p>
         <h2>Problem signals before the media</h2>
-        <p class="lede">After the Worker is redeployed, a cron checks every 15 minutes. With only free sources it emails when chatter spikes; with AeroDataBox configured it can also use official delay snapshots.</p>
+        <p class="lede">The Worker checks UK airports every 15 minutes. It compares the latest snapshot with the previous one and can email or Slack you when delays spike, cancellations jump, or traveller chatter rises unusually early.</p>
         <div class="delay-alert-status" id="alertStatusPanel">
           <p class="calc-status" id="alertStatus">Loading alert monitor…</p>
         </div>
@@ -134,6 +134,6 @@
   <script src="uk-map.js?v=1"></script>
   <script src="uk-heatmap.js?v=2"></script>
   <script src="uk-delays-demo.js?v=1"></script>
-  <script src="uk-delays.js?v=9"></script>
+  <script src="uk-delays.js?v=10"></script>
 </body>
 </html>
